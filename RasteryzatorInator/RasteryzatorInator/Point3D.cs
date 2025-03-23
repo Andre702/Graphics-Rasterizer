@@ -8,14 +8,16 @@ namespace RasteryzatorInator
 {
     internal struct Point3D
     {
-        public float X, Y, Z;
+        public float cX, cY, cZ; // cannonical
+        public int vX, vY; // screen / volume
+
         public RawColor Color;
 
         public Point3D(float x, float y, float z, RawColor? color = null)
         {
-            X = x;
-            Y = y;
-            Z = z;
+            cX = x;
+            cY = y;
+            cZ = z;
 
             if (color != null)
             {
@@ -25,6 +27,13 @@ namespace RasteryzatorInator
             {
                 Color = new RawColor(0, 0, 0);
             }
+        }
+
+        public void CalculatePointCoordinates(float width, float height)
+        {
+            vX = (int)((cX + 1) * 0.5f * width);
+            vY = (int)((cY + 1) * 0.5f * height);
+
         }
     }
 }
