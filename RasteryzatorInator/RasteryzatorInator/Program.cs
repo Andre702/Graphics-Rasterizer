@@ -15,12 +15,16 @@ class Program
         Rasterizer rasterizer = new Rasterizer(buffer);
 
         // new triangle
-        Point3D v1 = new Point3D(1.01f, -1.01f, 0f, new RawColor(250,0,30));
-        Point3D v2 = new Point3D(-1.01f, -1.01f, 0f, new RawColor(0, 0, 30));
-        Point3D v3 = new Point3D(0f, 1f, 0f, new RawColor(255, 255, 255));
-        RawColor triangleColor = new RawColor(200, 120, 40);
+        rasterizer.Triangle(
+            new Point3D(0.5f, -0.5f, 0f, new RawColor(250, 0, 30)), 
+            new Point3D(-0.5f, -0.5f, 0f, new RawColor(0, 0, 30)), 
+            new Point3D(0f, 0.5f, 0f, new RawColor(255, 255, 255)));
 
-        rasterizer.Triangle(v1, v2, v3);
+        // new triangle
+        rasterizer.Triangle(
+            new Point3D(-0.5f, -0.5f, 0f, new RawColor(250, 0, 30)),
+            new Point3D(-0.6f, 0f, 0f, new RawColor(0, 0, 30)),
+            new Point3D(0f, 0.5f, 0f, new RawColor(255, 255, 255)));
 
         buffer.SaveTGA("output.tga");
     }

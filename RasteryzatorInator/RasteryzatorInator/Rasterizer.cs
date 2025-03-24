@@ -37,6 +37,10 @@ internal class Rasterizer
         float dy23 = p2.vY - p3.vY;
         float dy31 = p3.vY - p1.vY;
 
+        bool topLeftEdge1 = dy12 < 0 || (dy12 == 0 && dx12 < 0);
+        bool topLeftEdge2 = dy23 < 0 || (dy23 == 0 && dx23 < 0);
+        bool topLeftEdge3 = dy31 < 0 || (dy31 == 0 && dx31 < 0);
+
         float lambdaDenominator = dy23 * -dx31 + dx23 * dy31;
               
         // Triangle boundaries - screen restriction
@@ -53,9 +57,9 @@ internal class Rasterizer
             for (int x = minX; x <= maxX; x++)
             {
                 // Inside triangle equation (one sided and with TopLeft priority)
-                if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) < 0) continue;
-                if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) < 0) continue;
-                if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) < 0) continue;
+                if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) < (topLeftEdge1 ? 0 : 1)) continue;
+                if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) < (topLeftEdge2 ? 0 : 1)) continue;
+                if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) < (topLeftEdge3 ? 0 : 1)) continue;
 
                 if (fullColorMode)
                 {
