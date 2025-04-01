@@ -31,14 +31,15 @@ internal class Rasterizer
         int screenY3 = (int)((p3.Y + 1) * 0.5f * height);
         
         // Triangle boundaries
-        int minX = Math.Max(0, Math.Min(screenX1, Math.Min(screenX2, screenX3)));
-        int minY = Math.Max(0, Math.Min(screenY1, Math.Min(screenY2, screenY3)));
-        int maxX = Math.Min(width - 1, Math.Max(screenX1, Math.Max(screenX2, screenX3)));
-        int maxY = Math.Min(height - 1, Math.Max(screenY1, Math.Max(screenY2, screenY3)));
+        int minX = Math.Min(screenX1, Math.Min(screenX2, screenX3));
+        int minY = Math.Min(screenY1, Math.Min(screenY2, screenY3));
+        int maxX = Math.Max(screenX1, Math.Max(screenX2, screenX3));
+        int maxY = Math.Max(screenY1, Math.Max(screenY2, screenY3));
 
-        for (int y = minY; y <= maxY; y++)
+
+        for (int x = 0; x <= maxX; x++)
         {
-            for (int x = minX; x <= maxX; x++)
+            for (int y = minX; y <= maxY; y++)
             {
                 if (InsideTriangle(x, y, screenX1, screenY1, screenX2, screenY2, screenX3, screenY3))
                 {
@@ -50,10 +51,10 @@ internal class Rasterizer
 
     private bool InsideTriangle(int x, int y, int werticeX1, int werticeY1, int werticeX2, int werticeY2, int werticeX3, int werticeY3)
     {
-        int a = (werticeX1 - werticeX2) * (y - werticeY1) - (werticeY1 - werticeY2) * (x - werticeX1);
-        int b = (werticeX2 - werticeX3) * (y - werticeY2) - (werticeY2 - werticeY3) * (x - werticeX2);
-        int c = (werticeX3 - werticeX1) * (y - werticeY3) - (werticeY3 - werticeY1) * (x - werticeX3);
+        int a = (x - werticeX2) * (werticeY1 - werticeY2) - (y - werticeY2) * (werticeX1 - werticeX2);
+        int b = (x - werticeX3) * (werticeY2 - werticeY3) - (y - werticeY3) * (werticeX2 - werticeX3);
+        int c = (x - werticeX1) * (werticeY3 - werticeY1) - (y - werticeY1) * (werticeX3 - werticeX1);
 
-        return (a > 0 && b > 0 && c > 0) || (a < 0 && b < 0 && c < 0);
+        return (a > 0 && b > 0 && c > 0);
     }
 }

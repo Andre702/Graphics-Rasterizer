@@ -16,7 +16,7 @@ class Program
 
         // new triangle
         Point3D v1 = new Point3D(-0.5f, -0.5f, 0f);
-        Point3D v2 = new Point3D(0.5f, -0.5f, 0f);
+        Point3D v2 = new Point3D(1.5f, -0.5f, 0f);
         Point3D v3 = new Point3D(0f, 0.5f, 0f);
         RawColor triangleColor = new RawColor(200, 120, 40);
 
