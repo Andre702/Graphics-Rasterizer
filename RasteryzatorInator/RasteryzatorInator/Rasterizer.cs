@@ -19,8 +19,8 @@ internal class Rasterizer
 
     public void Triangle(Point3D p1, Point3D p2, Point3D p3, RawColor? defaultColor = null)
     {
-        float cross = (p2.cX - p1.cX) * (p3.cY - p1.cY) - (p2.cY - p1.cY) * (p3.cX - p1.cX);
-        if (cross > 0) return; // points are described in the wrong convention
+        //float cross = (p2.cX - p1.cX) * (p3.cY - p1.cY) - (p2.cY - p1.cY) * (p3.cX - p1.cX);
+        //if (cross > 0) return;
 
         int width = buffer.Width;
         int height = buffer.Height;
@@ -39,7 +39,7 @@ internal class Rasterizer
 
         float lambdaDenominator = dy23 * -dx31 + dx23 * dy31;
               
-        // Triangle boundaries - screen restriction
+        // Triangle boundaries
         int minX = Math.Max(0, Math.Min(p1.vX, Math.Min(p2.vX, p3.vX)));
         int minY = Math.Max(0, Math.Min(p1.vY, Math.Min(p2.vY, p3.vY)));
         int maxX = Math.Min(width - 1, Math.Max(p1.vX, Math.Max(p2.vX, p3.vX)));
@@ -52,10 +52,10 @@ internal class Rasterizer
         {
             for (int x = minX; x <= maxX; x++)
             {
-                // Inside triangle equation (one sided and with TopLeft priority)
-                if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) < 0) continue;
-                if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) < 0) continue;
-                if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) < 0) continue;
+                // Inside triangle equation
+                if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) <= 0) continue;
+                if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) <= 0) continue;
+                if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) <= 0) continue;
 
                 if (fullColorMode)
                 {
