@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace RasteryzatorInator;
+﻿namespace RasteryzatorInator;
 
 internal class Rasterizer
 {
@@ -56,7 +48,7 @@ internal class Rasterizer
         {
             for (int x = minX; x <= maxX; x++)
             {
-                // Inside triangle equation (one sided and with TopLeft priority)
+                // Inside triangle equation
                 if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) < (topLeftEdge1 ? 0 : 1)) continue;
                 if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) < (topLeftEdge2 ? 0 : 1)) continue;
                 if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) < (topLeftEdge3 ? 0 : 1)) continue;
@@ -71,11 +63,15 @@ internal class Rasterizer
                 float lambda2 = ((p3.vY - p1.vY) * (x - p3.vX) + (p1.vX - p3.vX) * (y - p3.vY)) / lambdaDenominator;
                 float lambda3 = 1 - lambda1 - lambda2;
 
-                byte r = (byte)(lambda1 * p1.Color.R + lambda2 * p2.Color.R + lambda3 * p3.Color.R);
-                byte g = (byte)(lambda1 * p1.Color.G + lambda2 * p2.Color.G + lambda3 * p3.Color.G);
-                byte b = (byte)(lambda1 * p1.Color.B + lambda2 * p2.Color.B + lambda3 * p3.Color.B);
-
-                buffer.ColorBuffer[y * width + x] = new RawColor(r, g, b);
+                float depth = (lambda1 * p1.cZ + lambda2 * p2.cZ + lambda3 * p3.cZ);
+                if (depth < buffer.DepthBuffer[y * width + x])
+                {
+                    buffer.DepthBuffer[y * width + x] = depth;
+                    byte r = (byte)(lambda1 * p1.Color.R + lambda2 * p2.Color.R + lambda3 * p3.Color.R);
+                    byte g = (byte)(lambda1 * p1.Color.G + lambda2 * p2.Color.G + lambda3 * p3.Color.G);
+                    byte b = (byte)(lambda1 * p1.Color.B + lambda2 * p2.Color.B + lambda3 * p3.Color.B);
+                    buffer.ColorBuffer[y * width + x] = new RawColor(r, g, b);
+                }
             }
         }
 
