@@ -22,10 +22,12 @@ class Program
         vertexProcessor.SetLookAt(eyePosition, lookAtPoint, upVector);
 
         vertexProcessor.ObjectToWorld = Matrix4.Identity();
-        vertexProcessor.ApplyTranslation(new Vector3(-0.1f, 0, 0));
+        //vertexProcessor.ApplyTranslation(new Vector3(-2f, 4f, 0));
+        vertexProcessor.ApplyRotation(30, new Vector3(0, 0, 1));
+        vertexProcessor.ApplyScale(new Vector3(2, 2, 2));
 
-        VertexData vA = new VertexData(new Vector3(0.6f, -0.6f, 1), new RawColor(255, 0, 0));
-        VertexData vB = new VertexData(new Vector3(-0.6f, -0.6f, 1), new RawColor(0, 255, 0));
+        VertexData vA = new VertexData(new Vector3(-0.6f, -0.6f, 1), new RawColor(255, 0, 0));
+        VertexData vB = new VertexData(new Vector3(0.6f, -0.6f, 1), new RawColor(0, 255, 0));
         VertexData vC = new VertexData(new Vector3(0, 0.6f, 1), new RawColor(0, 0, 255));
 
         Console.WriteLine("--- Initial Data ---");
@@ -40,7 +42,7 @@ class Program
         Console.WriteLine($"Vertex B (Object): {vB.Position.X}, {vB.Position.Y}, {vB.Position.Z}");
         Console.WriteLine($"Vertex C (Object): {vC.Position.X}, {vC.Position.Y}, {vC.Position.Z}");
 
-        rasterizer.DrawTriangle(vA, vB, vC);
+        rasterizer.ProcessTriangle(vA, vB, vC);
 
 
         buffer.SaveTGA("output2.tga");
