@@ -1,5 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-namespace RasteryzatorInator;
+﻿namespace RasteryzatorInator;
 
 class Program
 {
@@ -9,28 +8,28 @@ class Program
 
         Buffer buffer = new Buffer();
         buffer.SetSize(512, 512);
-        buffer.ClearColor(0, 255, 200);
+        buffer.ClearColor(25, 40, 30);
         buffer.ClearDepth(100f);
 
-        Rasterizer rasterizer = new Rasterizer(buffer);
+        VertexProcessor vertexProcessor = new VertexProcessor();
+        Rasterizer rasterizer = new Rasterizer(buffer, vertexProcessor);
 
-        // new triangle
-        rasterizer.Triangle(
-            new Point3D(1.2f, -0.8f, 0f, new RawColor(250, 0, 30)), 
-            new Point3D(-0.4f, -0.5f, 0f, new RawColor(0, 0, 30)), 
-            new Point3D(0f, 0.4f, 0f, new RawColor(255, 255, 255)));
+        Vector3 eyePosition = new Vector3(0, 1, 3);
+        Vector3 lookAtPoint = new Vector3(0, 0, 0);
+        Vector3 upVector = Vector3.DefaultUp;
 
-        // new triangle
-        rasterizer.Triangle(
-            new Point3D(-0.4f, -0.5f, 0f, new RawColor(250, 0, 30)),
-            new Point3D(-0.8f, 0f, 0f, new RawColor(0, 0, 30)),
-            new Point3D(0f, 0.4f, 0f, new RawColor(255, 255, 255)));
+        vertexProcessor.SetPerspective(60.0f, (float)buffer.Width / buffer.Height, 0.1f, 100.0f);
+        vertexProcessor.SetLookAt(eyePosition, lookAtPoint, upVector);
 
-        // new triangle
-        rasterizer.Triangle(
-            new Point3D(0f, -0.8f, 4f, new RawColor(250, 0, 30)),
-            new Point3D(-0.8f, -0.5f, 4f, new RawColor(0, 0, 30)),
-            new Point3D(0.5f, 0.7f, -6f, new RawColor(255, 255, 255)));
+        vertexProcessor.ObjectToWorld = Matrix4.Identity();
+        vertexProcessor.ApplyTranslation(new Vector3(-0.1f, 0, 0));
+
+        VertexData vA = new VertexData(new Vector3(-0.6f, -0.6f, 0), new RawColor(255, 0, 0));
+        VertexData vB = new VertexData(new Vector3(0.6f, -0.6f, 0), new RawColor(0, 255, 0));
+        VertexData vC = new VertexData(new Vector3(0, 0.6f, 0), new RawColor(0, 0, 255));
+
+        rasterizer.DrawTriangle(vA, vB, vC);
+
 
         buffer.SaveTGA("output.tga");
     }

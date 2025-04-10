@@ -3,146 +3,143 @@
 internal class Rasterizer
 {
     private Buffer buffer;
+    private VertexProcessor vertexProcessor;
 
-    public Rasterizer(Buffer _buffer)
+    public Rasterizer(Buffer _buffer, VertexProcessor _vertexProcessor)
     {
         buffer = _buffer;
+        vertexProcessor = _vertexProcessor;
     }
 
-    public void Triangle(Point3D p1, Point3D p2, Point3D p3, RawColor? defaultColor = null)
+    private struct ProjectedVertex
     {
-        float cross = (p2.cX - p1.cX) * (p3.cY - p1.cY) - (p2.cY - p1.cY) * (p3.cX - p1.cX);
-        if (cross > 0) return; // points are described in the wrong convention
+        public Vector3 ScreenPos;
+        public RawColor Color;
+        public float InvW;
+    }                            
 
+    public void DrawTriangle(VertexData v0, VertexData v1, VertexData v2)
+    {
+        Vector4 clip0 = vertexProcessor.TransformPositionToClipSpace(v0.Position);
+        Vector4 clip1 = vertexProcessor.TransformPositionToClipSpace(v1.Position);
+        Vector4 clip2 = vertexProcessor.TransformPositionToClipSpace(v2.Position);
+
+        float epsilon = 0.0001f;
+        if (clip0.W >= -epsilon || clip1.W >= -epsilon || clip2.W >= -epsilon)
+        {
+            return;
+        }
+
+        float invW0 = 1.0f / clip0.W;
+        float invW1 = 1.0f / clip1.W;
+        float invW2 = 1.0f / clip2.W;
+
+        Vector3 ndc0 = new Vector3(clip0.X * invW0, clip0.Y * invW0, clip0.Z * invW0);
+        Vector3 ndc1 = new Vector3(clip1.X * invW1, clip1.Y * invW1, clip1.Z * invW1);
+        Vector3 ndc2 = new Vector3(clip2.X * invW2, clip2.Y * invW2, clip2.Z * invW2);
+
+        ProjectedVertex pv0 = MapToScreen(ndc0, invW0, v0.Color);
+        ProjectedVertex pv1 = MapToScreen(ndc1, invW1, v1.Color);
+        ProjectedVertex pv2 = MapToScreen(ndc2, invW2, v2.Color);
+
+        float crossProductScreen = (pv1.ScreenPos.X - pv0.ScreenPos.X) * (pv2.ScreenPos.Y - pv0.ScreenPos.Y) -
+                                       (pv1.ScreenPos.Y - pv0.ScreenPos.Y) * (pv2.ScreenPos.X - pv0.ScreenPos.X);
+        if (crossProductScreen < 0)
+        {
+            return;
+        }
+
+        RasterizeScreenTriangle(pv0, pv1, pv2);
+
+    }
+
+    private ProjectedVertex MapToScreen(Vector3 ndc, float invW, RawColor color)
+    {
         int width = buffer.Width;
         int height = buffer.Height;
 
-        p1.CalculatePointCoordinates(width, height);
-        p2.CalculatePointCoordinates(width, height);
-        p3.CalculatePointCoordinates(width, height);
+        float screenX = (ndc.X + 1.0f) * 0.5f * width;
+        float screenY = (1.0f - ndc.Y) * 0.5f * height;
 
-        float dx12 = p1.vX - p2.vX;
-        float dx23 = p2.vX - p3.vX;
-        float dx31 = p3.vX - p1.vX;
-                                
-        float dy12 = p1.vY - p2.vY;
-        float dy23 = p2.vY - p3.vY;
-        float dy31 = p3.vY - p1.vY;
+        float depthZ = (ndc.Z + 1.0f) * 0.5f;
 
-        bool topLeftEdge1 = dy12 < 0 || (dy12 == 0 && dx12 < 0);
-        bool topLeftEdge2 = dy23 < 0 || (dy23 == 0 && dx23 < 0);
-        bool topLeftEdge3 = dy31 < 0 || (dy31 == 0 && dx31 < 0);
+        return new ProjectedVertex
+        {
+            ScreenPos = new Vector3(screenX, screenY, depthZ),
+            Color = color,
+            InvW = invW
+        };
+    }
 
-        float lambdaDenominator = dy23 * -dx31 + dx23 * dy31;
-              
-        // Triangle boundaries - screen restriction
-        int minX = Math.Max(0, Math.Min(p1.vX, Math.Min(p2.vX, p3.vX)));
-        int minY = Math.Max(0, Math.Min(p1.vY, Math.Min(p2.vY, p3.vY)));
-        int maxX = Math.Min(width - 1, Math.Max(p1.vX, Math.Max(p2.vX, p3.vX)));
-        int maxY = Math.Min(height - 1, Math.Max(p1.vY, Math.Max(p2.vY, p3.vY)));
+    private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3)
+    {
+        int width = buffer.Width;
+        int height = buffer.Height;
 
-        bool fullColorMode = false;
-        if (defaultColor != null) fullColorMode = true;
+        float x1 = p1.ScreenPos.X, y1 = p1.ScreenPos.Y;
+        float x2 = p2.ScreenPos.X, y2 = p2.ScreenPos.Y;
+        float x3 = p3.ScreenPos.X, y3 = p3.ScreenPos.Y;
 
+        int minX = Math.Max(0, (int)MathF.Ceiling(Math.Min(x1, Math.Min(x2, x3)) - 0.5f));
+        int minY = Math.Max(0, (int)MathF.Ceiling(Math.Min(y1, Math.Min(y2, y3)) - 0.5f));
+        int maxX = Math.Min(width - 1, (int)MathF.Floor(Math.Max(x1, Math.Max(x2, x3)) + 0.5f));
+        int maxY = Math.Min(height - 1, (int)MathF.Floor(Math.Max(y1, Math.Max(y2, y3)) + 0.5f));
+
+        if (minX > maxX || minY > maxY) return;
+
+        float dx12 = x2 - x1; float dy12 = y2 - y1;
+        float dx23 = x3 - x2; float dy23 = y3 - y2;
+        float dx31 = x1 - x3; float dy31 = y1 - y3;
+
+        float startPx = minX + 0.5f;
+        float startPy = minY + 0.5f;
+        float edge1Start = (startPx - x1) * dy12 - (startPy - y1) * dx12;
+        float edge2Start = (startPx - x2) * dy23 - (startPy - y2) * dx23;
+        float edge3Start = (startPx - x3) * dy31 - (startPy - y3) * dx31;
+
+        float baryDenominator = (x3 - x1) * dy12 - (y3 - y1) * dx12;
+        if (Math.Abs(baryDenominator) < 0.00001f) return;
+        float invBaryDenominator = 1.0f / baryDenominator;
+
+
+        // Pętla po pikselach w bounding box
         for (int y = minY; y <= maxY; y++)
         {
+            float edge1Row = edge1Start;
+            float edge2Row = edge2Start;
+            float edge3Row = edge3Start;
+
             for (int x = minX; x <= maxX; x++)
             {
-                // Inside triangle equation
-                if (dx12 * (y - p1.vY) - dy12 * (x - p1.vX) < (topLeftEdge1 ? 0 : 1)) continue;
-                if (dx23 * (y - p2.vY) - dy23 * (x - p2.vX) < (topLeftEdge2 ? 0 : 1)) continue;
-                if (dx31 * (y - p3.vY) - dy31 * (x - p3.vX) < (topLeftEdge3 ? 0 : 1)) continue;
-
-                if (fullColorMode)
+                if (edge1Row >= -1e-5f && edge2Row >= -1e-5f && edge3Row >= -1e-5f)
                 {
-                    buffer.ColorBuffer[y * width + x] = defaultColor.Value;
-                    continue;
-                }
+                    float lambda3 = edge1Row * invBaryDenominator;
+                    float lambda1 = edge2Row * invBaryDenominator;
+                    float lambda2 = edge3Row * invBaryDenominator;
 
-                float lambda1 = ((p2.vY - p3.vY) * (x - p3.vX) + (p3.vX - p2.vX) * (y - p3.vY)) / lambdaDenominator;
-                float lambda2 = ((p3.vY - p1.vY) * (x - p3.vX) + (p1.vX - p3.vX) * (y - p3.vY)) / lambdaDenominator;
-                float lambda3 = 1 - lambda1 - lambda2;
+                    float interpolatedInvW = lambda1 * p1.InvW + lambda2 * p2.InvW + lambda3 * p3.InvW;
+                    if (Math.Abs(interpolatedInvW) < float.Epsilon) continue;
 
-                float depth = (lambda1 * p1.cZ + lambda2 * p2.cZ + lambda3 * p3.cZ);
-                if (depth < buffer.DepthBuffer[y * width + x])
-                {
-                    buffer.DepthBuffer[y * width + x] = depth;
-                    byte r = (byte)(lambda1 * p1.Color.R + lambda2 * p2.Color.R + lambda3 * p3.Color.R);
-                    byte g = (byte)(lambda1 * p1.Color.G + lambda2 * p2.Color.G + lambda3 * p3.Color.G);
-                    byte b = (byte)(lambda1 * p1.Color.B + lambda2 * p2.Color.B + lambda3 * p3.Color.B);
-                    buffer.ColorBuffer[y * width + x] = new RawColor(r, g, b);
+                    float interpolatedDepth = lambda1 * p1.ScreenPos.Z + lambda2 * p2.ScreenPos.Z + lambda3 * p3.ScreenPos.Z;
+
+                    int pixelIndex = y * width + x;
+                    if (interpolatedDepth >= 0 && interpolatedDepth < buffer.DepthBuffer[pixelIndex])
+                    {
+                        buffer.DepthBuffer[pixelIndex] = interpolatedDepth;
+                        byte r = (byte)Math.Clamp(lambda1 * p1.Color.R + lambda2 * p2.Color.R + lambda3 * p3.Color.R, 0, 255);
+                        byte g = (byte)Math.Clamp(lambda1 * p1.Color.G + lambda2 * p2.Color.G + lambda3 * p3.Color.G, 0, 255);
+                        byte b = (byte)Math.Clamp(lambda1 * p1.Color.B + lambda2 * p2.Color.B + lambda3 * p3.Color.B, 0, 255);
+
+                        buffer.ColorBuffer[pixelIndex] = new RawColor(r, g, b);
+                    }
                 }
+                edge1Row += dy12;
+                edge2Row += dy23;
+                edge3Row += dy31;
             }
+            edge1Start -= dx12;
+            edge2Start -= dx23;
+            edge3Start -= dx31;
         }
-
-    }
-
-    private bool GetConstants(Point3D p1, Point3D p2, Point3D p3, 
-        out float dx12, out float dx23, out float dx31,
-        out float dy12, out float dy23, out float dy31,
-        out float lambdaDenominator)
-    {
-        dx12 = p1.cX - p2.cX;
-        dx23 = p2.cX - p3.cX;
-        dx31 = p3.cX - p1.cX;
-
-        dy12 = p1.cY - p2.cY;
-        dy23 = p2.cY - p3.cY;
-        dy31 = p3.cY - p1.cY;
-
-        //lambdaDenominator = dx23 * -dx31 + dx23 * dy31;
-        lambdaDenominator = (p2.cY - p3.cY) * (p1.cX - p3.cX) + (p3.cX - p2.cX) * (p1.cY - p3.cY);
-
-        float cross = (p2.cX - p1.cX) * (p3.cY - p1.cY) - (p2.cY - p1.cY) * (p3.cX - p1.cX);
-        if (cross > 0) return false; // points are described in the wrong convention
-
-        return true;
-
-    }
-
-    private bool InsideTriangle(int x, int y, int werticeX1, int werticeY1, int werticeX2, int werticeY2, int werticeX3, int werticeY3)
-    {
-        int a = (werticeX1 - werticeX2) * (y - werticeY1) - (werticeY1 - werticeY2) * (x - werticeX1);
-        int b = (werticeX2 - werticeX3) * (y - werticeY2) - (werticeY2 - werticeY3) * (x - werticeX2);
-        int c = (werticeX3 - werticeX1) * (y - werticeY3) - (werticeY3 - werticeY1) * (x - werticeX3);
-
-        return (a > 0 && b > 0 && c > 0);
-    }
-
-    private (float, float, float) BarycentricCoordinates(int x, int y, int x1, int y1, int x2, int y2, int x3, int y3)
-    {
-        float denominator = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
-        float lambda1 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denominator;
-        float lambda2 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denominator;
-        float lambda3 = 1 - lambda1 - lambda2;
-
-        return (lambda1, lambda2, lambda3);
-    }
-
-    private RawColor InterpolateColor((float, float, float) bary, RawColor color1, RawColor color2, RawColor color3)
-    {
-        float lambda1 = bary.Item1;
-        float lambda2 = bary.Item2;
-        float lambda3 = bary.Item3;
-
-        byte r = (byte)(lambda1 * color1.R + lambda2 * color2.R + lambda3 * color3.R);
-        byte g = (byte)(lambda1 * color1.G + lambda2 * color2.G + lambda3 * color3.G);
-        byte b = (byte)(lambda1 * color1.B + lambda2 * color2.B + lambda3 * color3.B);
-
-        return new RawColor(r, g, b);
-    }
-
-    private RawColor InterpolateColor(int x, int y, Point3D p1, Point3D p2, Point3D p3)
-    {
-        float denominator = (p2.cY - p3.cY) * (p1.cX - p3.cX) + (p3.cX - p2.cX) * (p1.cY - p3.cY);
-        float lambda1 = ((p2.cY - p3.cY) * (x - p3.cX) + (p3.cX - p2.cX) * (y - p3.cY)) / denominator;
-        float lambda2 = ((p3.cY - p1.cY) * (x - p3.cX) + (p1.cX - p3.cX) * (y - p3.cY)) / denominator;
-        float lambda3 = 1 - lambda1 - lambda2;
-
-        byte r = (byte)(lambda1 * p1.Color.R + lambda2 * p2.Color.R + lambda3 * p3.Color.R);
-        byte g = (byte)(lambda1 * p1.Color.G + lambda2 * p2.Color.G + lambda3 * p3.Color.G);
-        byte b = (byte)(lambda1 * p1.Color.B + lambda2 * p2.Color.B + lambda3 * p3.Color.B);
-
-        return new RawColor(r, g, b);
     }
 }
