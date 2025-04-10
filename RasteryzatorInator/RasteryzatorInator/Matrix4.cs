@@ -113,27 +113,58 @@ namespace RasteryzatorInator
 
         public static Matrix4 LookAt(Vector3 origin, Vector3 focusAt) => LookAt(origin, focusAt, Vector3.DefaultUp);
 
-        public static Matrix4 LookAt(Vector3 origin, Vector3 focusAt, Vector3 up)
+        public static Matrix4 LookAt(Vector3 eye, Vector3 center, Vector3 up)
         {
-            Vector3 forward = (origin - focusAt).Normalized();
+            // Oblicz osie układu współrzędnych kamery
+            Vector3 zaxis = (eye - center).Normalized();  // Oś Z kamery (patrzy na obserwatora, +Z wychodzi z ekranu)
+            Vector3 xaxis = Vector3.Cross(up, zaxis).Normalized(); // Oś X kamery (w prawo)
+            Vector3 yaxis = Vector3.Cross(zaxis, xaxis); // Oś Y kamery (w górę - nie trzeba normalizować)
 
-            Vector3 side = Vector3.Cross(forward, up).Normalized();
-
-            Vector3 upward = Vector3.Cross(side, forward);
-
-            Matrix4 result = new Matrix4(
-                new Vector4(side.X, upward.X, -forward.X, 0), // Kolumna 0 (oś s)
-                new Vector4(side.Y, upward.Y, -forward.Y, 0), // Kolumna 1 (oś u)
-                new Vector4(side.Z, upward.Z, -forward.Z, 0), // Kolumna 2 (oś -f)
-                new Vector4(0, 0, 0, 1) // Kolumna 3 (na razie jednostkowa translacja)
+            Matrix4 view = new Matrix4(
+                new Vector4(xaxis.X, xaxis.Y, xaxis.Z, 0),          // Kolumna 0
+                new Vector4(yaxis.X, yaxis.Y, yaxis.Z, 0),          // Kolumna 1
+                new Vector4(zaxis.X, zaxis.Y, zaxis.Z, 0),          // Kolumna 2
+                new Vector4(0, 0, 0, 1)                             // Kolumna 3 (translacja będzie dodana)
             );
+            // view jest teraz R^T. Potrzebujemy pomnożyć przez T(-eye)
+            Matrix4 translation = Matrix4.Identity();
+            translation[3] = new Vector4(-eye.X, -eye.Y, -eye.Z, 1); // Kolumna translacji
 
-            Matrix4 inverseOrigin = new Matrix4();
-            inverseOrigin[3] = new Vector4(-origin.X, -origin.Y, -origin.Z, 1);
+            return view * translation;
 
-            return result * inverseOrigin;
+            // Alternatywnie, wypełnijmy macierz od razu:
+            // return new Matrix4(
+            //     new Vector4(xaxis.X, yaxis.X, zaxis.X, 0), // Kolumna 0 - BŁĄD! To są komponenty X osi
+            //     new Vector4(xaxis.Y, yaxis.Y, zaxis.Y, 0), // Kolumna 1 - BŁĄD! To są komponenty Y osi
+            //     new Vector4(xaxis.Z, yaxis.Z, zaxis.Z, 0), // Kolumna 2 - BŁĄD! To są komponenty Z osi
+            //     new Vector4(-Vector3.Dot(xaxis, eye), -Vector3.Dot(yaxis, eye), -Vector3.Dot(zaxis, eye), 1) // Kolumna 3 - Poprawna translacja
+            // );
+            // Ta powyższa jest Transponowana, jeśli ma działać z M*v.
+
+            // OSTATECZNA POPRAWNA WERSJA dla Column-Major i M*v:
+            // return new Matrix4(
+            //     new Vector4(xaxis.X, yaxis.X, zaxis.X, -Vector3.Dot(xaxis, eye)), // Kolumna 0
+            //     new Vector4(xaxis.Y, yaxis.Y, zaxis.Y, -Vector3.Dot(yaxis, eye)), // Kolumna 1
+            //     new Vector4(xaxis.Z, yaxis.Z, zaxis.Z, -Vector3.Dot(zaxis, eye)), // Kolumna 2
+            //     new Vector4(0,       0,       0,        1)                        // Kolumna 3
+            // ); // Ta forma nie jest standardowa. Standardowa to ta wyliczona R^T * T(-eye).
+
+            // Użyjemy R^T * T(-eye)
+            Matrix4 rotT = new Matrix4(
+                new Vector4(xaxis.X, xaxis.Y, xaxis.Z, 0),
+                new Vector4(yaxis.X, yaxis.Y, yaxis.Z, 0),
+                new Vector4(zaxis.X, zaxis.Y, zaxis.Z, 0),
+                new Vector4(0, 0, 0, 1)
+            );
+            Matrix4 transInv = Matrix4.Identity();
+            transInv[3] = new Vector4(-eye.X, -eye.Y, -eye.Z, 1);
+
+            return rotT * transInv;
+
         }
 
+
+        // --- Poprawiona Macierz Perspective ---
         public static Matrix4 CreatePerspective(float fovyDegrees, float aspectRatio, float nearPlane, float farPlane)
         {
             if (nearPlane <= 0) throw new ArgumentOutOfRangeException();
@@ -142,14 +173,15 @@ namespace RasteryzatorInator
             if (fovyDegrees <= 0 || fovyDegrees >= 180) throw new ArgumentOutOfRangeException();
 
             float fovyRadians = fovyDegrees * (MathF.PI / 180.0f);
-            float f = MathF.Cos(fovyRadians) / MathF.Sin(fovyRadians);
-            float rangeInv = 1.0f / (nearPlane - farPlane);
+            float f = 1.0f / MathF.Tan(fovyRadians / 2.0f); // cot(fovy/2)
+            float rangeInv = 1.0f / (nearPlane - farPlane); // 1 / (n - f)
 
+            // Standard OpenGL Perspective Matrix (Column-Major)
             return new Matrix4(
-                new Vector4(f / aspectRatio, 0, 0, 0),
-                new Vector4(0, f, 0, 0),
-                new Vector4(0, 0, (farPlane + nearPlane) * rangeInv, -1),
-                new Vector4(0, 0, (2 * farPlane * nearPlane) * rangeInv, 0)
+                new Vector4(f / aspectRatio, 0, 0, 0),                 // Kolumna 0
+                new Vector4(0, f, 0, 0),                                // Kolumna 1
+                new Vector4(0, 0, (farPlane + nearPlane) * rangeInv, -1.0f), // Kolumna 2 (Element [3,2] to -1) - POPRAWIONO
+                new Vector4(0, 0, (2.0f * farPlane * nearPlane) * rangeInv, 0)  // Kolumna 3 (Element [2,3] to 2fn/(n-f))
             );
         }
     }
