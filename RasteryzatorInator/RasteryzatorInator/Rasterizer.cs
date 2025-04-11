@@ -62,7 +62,7 @@ internal class Rasterizer
             return;
         }
 
-        RasterizeScreenTriangle(pv1, pv2, pv3, screenArea);
+        RasterizeScreenTriangle(pv1, pv2, pv3);
     }
 
     private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color)
@@ -85,7 +85,7 @@ internal class Rasterizer
         };
     }
 
-    private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3, float triangleArea)
+    private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3)
     {
         int width = _buffer.Width;
         int height = _buffer.Height;
@@ -112,8 +112,6 @@ internal class Rasterizer
         bool topLeftEdge3 = dy31 < 0 || (dy31 == 0 && dx31 < 0);
 
         float lambdaDenominator = dy23 * -dx31 + dx23 * dy31;
-
-        float invArea = 1 / triangleArea;
 
         for (int y = minY; y <= maxY; y++)
         {

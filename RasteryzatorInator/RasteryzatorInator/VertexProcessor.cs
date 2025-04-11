@@ -26,23 +26,44 @@ namespace RasteryzatorInator
         public void SetPerspective(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane)
         {
             float fovYRadians = fovYDegrees * (MathF.PI / 180.0f);
-            ViewToProjection = Matrix4.CreatePerspectiveFieldOfView(fovYRadians, aspectRatio, nearPlane, farPlane);
+
+            if (fovYRadians <= 0 || fovYRadians >= MathF.PI) throw new ArgumentOutOfRangeException(nameof(fovYRadians));
+            if (aspectRatio <= 0) throw new ArgumentOutOfRangeException(nameof(aspectRatio));
+            if (nearPlane <= 0) throw new ArgumentOutOfRangeException(nameof(nearPlane));
+            if (farPlane <= nearPlane) throw new ArgumentOutOfRangeException(nameof(farPlane));
+
+            float f = 1.0f / MathF.Tan(fovYRadians / 2.0f);
+            float rangeInv = 1.0f / (nearPlane - farPlane);
+
+            ViewToProjection = new Matrix4(
+                new Vector4(f / aspectRatio, 0, 0, 0),
+                new Vector4(0, f, 0, 0),
+                new Vector4(0, 0, (farPlane + nearPlane) * rangeInv, -1.0f),
+                new Vector4(0, 0, 2.0f * farPlane * nearPlane * rangeInv, 0)
+            );
         }
+
+
 
         public void SetLookAt(Vector3 eye, Vector3 center, Vector3 up)
         {
-            WorldToView = Matrix4.LookAt(eye, center, up);
-        }
+            Vector3 f = (eye - center).Normalized();
+            up.Normalize();
+            Vector3 s = Vector3.Cross(up, f);
+            Vector3 u = Vector3.Cross(f, s);
 
-        public void Translate(Vector3 v) => ObjectToWorld = ObjectToWorld * Matrix4.CreateTranslation(v);
-        public void Rotate(Vector3 axis, float angleDegrees)
-        {
-            float angleRad = angleDegrees * (MathF.PI / 180.0f);
-            ObjectToWorld = ObjectToWorld * Matrix4.CreateFromAxisAngle(axis, angleRad);
-        }
-        public void Scale(Vector3 v) => ObjectToWorld = ObjectToWorld * Matrix4.CreateScale(v);
+            Matrix4 lookAt = new Matrix4(
+                new Vector4(s.X, u.X, f.X, 0),
+                new Vector4(s.Y, u.Y, f.Y, 0),
+                new Vector4(s.Z, u.Z, f.Z, 0),
+                new Vector4(0, 0, 0, 1)
+                );
 
-        public void ResetObjectTransform() => ObjectToWorld = Matrix4.Identity;
+            Matrix4 m = Matrix4.Identity;
+            m.Col3 = new Vector4(-eye, 1);
+
+            WorldToView = lookAt * m;
+        }
 
         public Vector4 TransformPositionToClipSpace(Vector3 objectPosition)
         {

@@ -1,4 +1,6 @@
-﻿namespace RasteryzatorInator.MathLibrary;
+﻿using System.Linq;
+
+namespace RasteryzatorInator.MathLibrary;
 
 public static class Values
 {
@@ -74,118 +76,6 @@ public struct Matrix4
             m[1, 0] * v.X + m[1, 1] * v.Y + m[1, 2] * v.Z + m[1, 3] * v.W, // Dot(Row1, v)
             m[2, 0] * v.X + m[2, 1] * v.Y + m[2, 2] * v.Z + m[2, 3] * v.W, // Dot(Row2, v)
             m[3, 0] * v.X + m[3, 1] * v.Y + m[3, 2] * v.Z + m[3, 3] * v.W  // Dot(Row3, v)
-        );
-    }
-
-
-    // Macierze Transformacje
-    public static Matrix4 CreateTranslation(Vector3 v) => new Matrix4(
-        new Vector4(1, 0, 0, 0),
-        new Vector4(0, 1, 0, 0),
-        new Vector4(0, 0, 1, 0),
-        new Vector4(v.X, v.Y, v.Z, 1)
-    );
-
-    public static Matrix4 CreateScale(Vector3 v) => new Matrix4(
-        new Vector4(v.X, 0, 0, 0),
-        new Vector4(0, v.Y, 0, 0),
-        new Vector4(0, 0, v.Z, 0),
-        new Vector4(0, 0, 0, 1)
-    );
-
-    public static Matrix4 CreateRotationX(float angleRad)
-    {
-        float c = MathF.Cos(angleRad);
-        float s = MathF.Sin(angleRad);
-        return new Matrix4(
-            new Vector4(1, 0, 0, 0),
-            new Vector4(0, c, s, 0),
-            new Vector4(0, -s, c, 0),
-            new Vector4(0, 0, 0, 1)
-        );
-    }
-    public static Matrix4 CreateRotationY(float angleRad)
-    {
-        float c = MathF.Cos(angleRad);
-        float s = MathF.Sin(angleRad);
-        return new Matrix4(
-            new Vector4(c, 0, -s, 0),
-            new Vector4(0, 1, 0, 0),
-            new Vector4(s, 0, c, 0),
-            new Vector4(0, 0, 0, 1)
-        );
-    }
-    public static Matrix4 CreateRotationZ(float angleRad)
-    {
-        float c = MathF.Cos(angleRad);
-        float s = MathF.Sin(angleRad);
-        return new Matrix4(
-            new Vector4(c, s, 0, 0),
-            new Vector4(-s, c, 0, 0),
-            new Vector4(0, 0, 1, 0),
-            new Vector4(0, 0, 0, 1)
-        );
-    }
-
-    public static Matrix4 CreateFromAxisAngle(Vector3 axis, float angleRad)
-    {
-        axis.Normalize();
-        float x = axis.X, y = axis.Y, z = axis.Z;
-        float c = MathF.Cos(angleRad);
-        float s = MathF.Sin(angleRad);
-        float t = 1.0f - c;
-
-        return new Matrix4(
-            new Vector4(t * x * x + c, t * x * y + s * z, t * x * z - s * y, 0),
-            new Vector4(t * x * y - s * z, t * y * y + c, t * y * z + s * x, 0),
-            new Vector4(t * x * z + s * y, t * y * z - s * x, t * z * z + c, 0),
-            new Vector4(0, 0, 0, 1)
-        );
-        //return new Matrix4(
-        //    new Vector4(t * x * x + c, t * x * y - s * z, t * x * z + s * y, 0), // Column 0
-        //    new Vector4(t * x * y + s * z, t * y * y + c, t * y * z - s * x, 0), // Column 1
-        //    new Vector4(t * x * z - s * y, t * y * z + s * x, t * z * z + c, 0), // Column 2
-        //    new Vector4(0, 0, 0, 1)  // Column 3
-        //);
-    }
-
-    // Widok i Projekcja
-
-    // (World -> View)
-    public static Matrix4 LookAt(Vector3 eye, Vector3 focusPoint, Vector3 up)
-    {
-        Vector3 zaxis = (eye - focusPoint).Normalized();
-        Vector3 xaxis = Vector3.Cross(up, zaxis).Normalized();
-        Vector3 yaxis = Vector3.Cross(zaxis, xaxis);
-
-        Matrix4 rotationT = new Matrix4(
-            new Vector4(xaxis.X, xaxis.Y, xaxis.Z, 0),
-            new Vector4(yaxis.X, yaxis.Y, yaxis.Z, 0),
-            new Vector4(zaxis.X, zaxis.Y, zaxis.Z, 0),
-            new Vector4(0, 0, 0, 1)
-        );
-
-        Matrix4 translation = CreateTranslation(-eye);
-
-        return rotationT * translation;
-    }
-
-    // (View -> Clip)
-    public static Matrix4 CreatePerspectiveFieldOfView(float fovYRadians, float aspectRatio, float nearPlane, float farPlane)
-    {
-        if (fovYRadians <= 0 || fovYRadians >= MathF.PI) throw new ArgumentOutOfRangeException(nameof(fovYRadians));
-        if (aspectRatio <= 0) throw new ArgumentOutOfRangeException(nameof(aspectRatio));
-        if (nearPlane <= 0) throw new ArgumentOutOfRangeException(nameof(nearPlane));
-        if (farPlane <= nearPlane) throw new ArgumentOutOfRangeException(nameof(farPlane));
-
-        float f = 1.0f / MathF.Tan(fovYRadians / 2.0f);
-        float rangeInv = 1.0f / (nearPlane - farPlane);
-
-        return new Matrix4(
-            new Vector4(f / aspectRatio, 0, 0, 0),
-            new Vector4(0, f, 0, 0),
-            new Vector4(0, 0, (farPlane + nearPlane) * rangeInv, -1.0f),
-            new Vector4(0, 0, 2.0f * farPlane * nearPlane * rangeInv, 0)
         );
     }
 

@@ -25,8 +25,9 @@ class Program
         Vector3 upVector = Vector3.Up;
         vertexProcessor.SetLookAt(eyePosition, focusPoint, upVector);
 
-        float fovYDegrees = 60.0f;
+        float fovYDegrees = 30.0f;
         float aspectRatio = (float)width / height;
+        //float aspectRatio = 1;
         float nearPlane = 0.1f;
         float farPlane = 100.0f;
         vertexProcessor.SetPerspective(fovYDegrees, aspectRatio, nearPlane, farPlane);
@@ -40,16 +41,7 @@ class Program
         vB = new VertexData(new Vector3(0.5f, -0.5f, 0.0f), new RawColor(0, 0, 30));
         vC = new VertexData(new Vector3(0.0f, 0.5f, 0.0f), new RawColor(255, 255, 255));
 
-        vertexProcessor.ResetObjectTransform();
-
         rasterizer.DrawTriangle(vA, vB, vC);
-
-        vertexProcessor.ResetObjectTransform();
-        vertexProcessor.Translate(new Vector3(-1.3f, 0, 0));
-        vertexProcessor.Rotate(Vector3.UnitZ, 102);
-
-        rasterizer.DrawTriangle(vA, vB, vC);
-
 
         buffer.SaveTGA("output_rasterized.tga");
     }
