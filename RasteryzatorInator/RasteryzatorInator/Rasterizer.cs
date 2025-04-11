@@ -1,4 +1,5 @@
-﻿namespace RasteryzatorInator;
+﻿using RasteryzatorInator.MathLibrary;
+namespace RasteryzatorInator;
 
 internal class Rasterizer
 {

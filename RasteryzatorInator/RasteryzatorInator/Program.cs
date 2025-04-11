@@ -1,4 +1,6 @@
-﻿namespace RasteryzatorInator;
+﻿using RasteryzatorInator.MathLibrary;
+
+namespace RasteryzatorInator;
 
 class Program
 {
@@ -6,12 +8,12 @@ class Program
     {
         Console.WriteLine("Hello There");
 
-        const int width = 800;
-        const int height = 600;
+        const int width = 512;
+        const int height = 512;
 
         Buffer buffer = new Buffer();
         buffer.SetSize(width, height);
-        buffer.ClearColor(0, 0, 0);
+        buffer.ClearColor(0, 255, 200);
         buffer.ClearDepth(1.0f);
 
         VertexProcessor vertexProcessor = new VertexProcessor();
@@ -29,25 +31,24 @@ class Program
         float farPlane = 100.0f;
         vertexProcessor.SetPerspective(fovYDegrees, aspectRatio, nearPlane, farPlane);
 
+        VertexData vA;
+        VertexData vB;
+        VertexData vC;
 
 
-        VertexData vA = new VertexData(new Vector3(-0.5f, -0.5f, 0.0f), new RawColor (255,0,0));
-        VertexData vB = new VertexData(new Vector3(0.5f, -0.5f, 0.0f), new RawColor(0, 255, 0));
-        VertexData vC = new VertexData(new Vector3(0.0f, 0.5f, 0.0f), new RawColor(0, 0, 255));
+        vA = new VertexData(new Vector3(-0.5f, -0.5f, 0.0f), new RawColor(250, 0, 30));
+        vB = new VertexData(new Vector3(0.5f, -0.5f, 0.0f), new RawColor(0, 0, 30));
+        vC = new VertexData(new Vector3(0.0f, 0.5f, 0.0f), new RawColor(255, 255, 255));
 
         vertexProcessor.ResetObjectTransform();
 
         rasterizer.DrawTriangle(vA, vB, vC);
 
-        VertexData vD = new VertexData(new Vector3(-0.8f, -0.8f, -0.5f), RawColor.Gray(255));
-        VertexData vE = new VertexData(new Vector3(-0.2f, -0.8f, -0.5f), RawColor.Gray(180));
-        VertexData vF = new VertexData(new Vector3(-0.5f, -0.2f, -0.5f), RawColor.Gray(100));
-
         vertexProcessor.ResetObjectTransform();
-        vertexProcessor.Translate(new Vector3(-0.5f, 0, 0));
-        vertexProcessor.Rotate(Vector3.UnitZ, 15f);
+        vertexProcessor.Translate(new Vector3(-1.3f, 0, 0));
+        vertexProcessor.Rotate(Vector3.UnitZ, 102);
 
-        rasterizer.DrawTriangle(vD, vE, vF);
+        rasterizer.DrawTriangle(vA, vB, vC);
 
 
         buffer.SaveTGA("output_rasterized.tga");

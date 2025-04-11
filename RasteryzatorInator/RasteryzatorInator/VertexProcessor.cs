@@ -1,5 +1,4 @@
-﻿using System;
-using RasteryzatorInator;
+﻿using RasteryzatorInator.MathLibrary;
 
 namespace RasteryzatorInator
 {
