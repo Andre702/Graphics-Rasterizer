@@ -4,47 +4,52 @@ class Program
 {
     static void Main()
     {
-        Console.WriteLine("Hello There!");
+        Console.WriteLine("Hello There");
+
+        const int width = 800;
+        const int height = 600;
 
         Buffer buffer = new Buffer();
-        buffer.SetSize(512, 512);
-        buffer.ClearColor(25, 40, 30);
-        buffer.ClearDepth(100f);
+        buffer.SetSize(width, height);
+        buffer.ClearColor(0, 0, 0);
+        buffer.ClearDepth(1.0f);
 
         VertexProcessor vertexProcessor = new VertexProcessor();
         Rasterizer rasterizer = new Rasterizer(buffer, vertexProcessor);
 
-        Vector3 eyePosition = new Vector3(0, 1, 3);
-        Vector3 lookAtPoint = new Vector3(0, 0, 0);
-        Vector3 upVector = Vector3.DefaultUp;
+        // kamera
+        Vector3 eyePosition = new Vector3(0, 0, 3);
+        Vector3 focusPoint = Vector3.Zero;
+        Vector3 upVector = Vector3.Up;
+        vertexProcessor.SetLookAt(eyePosition, focusPoint, upVector);
 
-        vertexProcessor.SetPerspective(60.0f, (float)buffer.Width / buffer.Height, 0.1f, 100.0f);
-        vertexProcessor.SetLookAt(eyePosition, lookAtPoint, upVector);
-
-        vertexProcessor.ObjectToWorld = Matrix4.Identity();
-        //vertexProcessor.ApplyTranslation(new Vector3(-2f, 4f, 0));
-        vertexProcessor.ApplyRotation(30, new Vector3(0, 0, 1));
-        vertexProcessor.ApplyScale(new Vector3(2, 2, 2));
-
-        VertexData vA = new VertexData(new Vector3(-0.6f, -0.6f, 1), new RawColor(255, 0, 0));
-        VertexData vB = new VertexData(new Vector3(0.6f, -0.6f, 1), new RawColor(0, 255, 0));
-        VertexData vC = new VertexData(new Vector3(0, 0.6f, 1), new RawColor(0, 0, 255));
-
-        Console.WriteLine("--- Initial Data ---");
-        Console.WriteLine($"Eye Position: {eyePosition.X}, {eyePosition.Y}, {eyePosition.Z}");
-        Console.WriteLine($"LookAt Point: {lookAtPoint.X}, {lookAtPoint.Y}, {lookAtPoint.Z}");
-        Console.WriteLine($"Up Vector:    {upVector.X}, {upVector.Y}, {upVector.Z}");
-        Console.WriteLine($"Near Plane: {0.1f}, Far Plane: {100.0f}");
-        Console.WriteLine($"ObjectToWorld (before Draw): \n{vertexProcessor.ObjectToWorld}");
-        Console.WriteLine($"WorldToView: \n{vertexProcessor.WorldToView}");
-        Console.WriteLine($"ViewToProjection: \n{vertexProcessor.ViewToProjection}");
-        Console.WriteLine($"Vertex A (Object): {vA.Position.X}, {vA.Position.Y}, {vA.Position.Z}");
-        Console.WriteLine($"Vertex B (Object): {vB.Position.X}, {vB.Position.Y}, {vB.Position.Z}");
-        Console.WriteLine($"Vertex C (Object): {vC.Position.X}, {vC.Position.Y}, {vC.Position.Z}");
-
-        rasterizer.ProcessTriangle(vA, vB, vC);
+        float fovYDegrees = 60.0f;
+        float aspectRatio = (float)width / height;
+        float nearPlane = 0.1f;
+        float farPlane = 100.0f;
+        vertexProcessor.SetPerspective(fovYDegrees, aspectRatio, nearPlane, farPlane);
 
 
-        buffer.SaveTGA("output2.tga");
+
+        VertexData vA = new VertexData(new Vector3(-0.5f, -0.5f, 0.0f), new RawColor (255,0,0));
+        VertexData vB = new VertexData(new Vector3(0.5f, -0.5f, 0.0f), new RawColor(0, 255, 0));
+        VertexData vC = new VertexData(new Vector3(0.0f, 0.5f, 0.0f), new RawColor(0, 0, 255));
+
+        vertexProcessor.ResetObjectTransform();
+
+        rasterizer.DrawTriangle(vA, vB, vC);
+
+        VertexData vD = new VertexData(new Vector3(-0.8f, -0.8f, -0.5f), RawColor.Gray(255));
+        VertexData vE = new VertexData(new Vector3(-0.2f, -0.8f, -0.5f), RawColor.Gray(180));
+        VertexData vF = new VertexData(new Vector3(-0.5f, -0.2f, -0.5f), RawColor.Gray(100));
+
+        vertexProcessor.ResetObjectTransform();
+        vertexProcessor.Translate(new Vector3(-0.5f, 0, 0));
+        vertexProcessor.Rotate(Vector3.UnitZ, 15f);
+
+        rasterizer.DrawTriangle(vD, vE, vF);
+
+
+        buffer.SaveTGA("output_rasterized.tga");
     }
 }
