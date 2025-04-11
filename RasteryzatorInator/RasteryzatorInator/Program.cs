@@ -8,8 +8,8 @@ class Program
     {
         Console.WriteLine("Hello There");
 
-        const int width = 512;
-        const int height = 512;
+        const int width = 600;
+        const int height = 210;
 
         Buffer buffer = new Buffer();
         buffer.SetSize(width, height);
@@ -25,9 +25,9 @@ class Program
         Vector3 upVector = Vector3.Up;
         vertexProcessor.SetLookAt(eyePosition, focusPoint, upVector);
 
-        float fovYDegrees = 30.0f;
-        float aspectRatio = (float)width / height;
-        //float aspectRatio = 1;
+        float fovYDegrees = 45.0f;
+        //float aspectRatio = (float)width / height;
+        float aspectRatio = 1;
         float nearPlane = 0.1f;
         float farPlane = 100.0f;
         vertexProcessor.SetPerspective(fovYDegrees, aspectRatio, nearPlane, farPlane);
