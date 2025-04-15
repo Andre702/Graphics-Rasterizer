@@ -41,6 +41,7 @@ class Program
         vC = new VertexData(new Vector3(0.0f, 0.5f, 0.0f), new RawColor(255, 255, 255));
 
         vertexProcessor.ResetObjectTransform();
+        vertexProcessor.Rotate(Vector3.UnitZ, -30);
 
         rasterizer.DrawTriangle(vA, vB, vC);
 
