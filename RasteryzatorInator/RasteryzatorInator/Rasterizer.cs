@@ -25,6 +25,45 @@ internal class Rasterizer
         public float Z => ScreenPos.Z;
     }
 
+    public void DrawMesh(Mesh mesh)
+    {
+        if (mesh == null) throw new ArgumentNullException(nameof(mesh));
+
+        // Iteruj po indeksach w krokach co 3, aby uzyskać każdy trójkąt
+        for (int i = 0; i < mesh.Indices.Count; i += 3)
+        {
+            int index1 = mesh.Indices[i];
+            int index2 = mesh.Indices[i + 1];
+            int index3 = mesh.Indices[i + 2];
+
+            // Pobierz dane wierzchołków na podstawie indeksów
+            VertexData v1 = mesh.Vertices[index1];
+            VertexData v2 = mesh.Vertices[index2];
+            VertexData v3 = mesh.Vertices[index3];
+
+            // Narysuj pojedynczy trójkąt siatki
+            DrawTriangle(v1, v2, v3);
+        }
+    }
+
+    public void DrawCone(int verticalSegments, float height, RawColor color1, RawColor color2, RawColor color3)
+    {
+        Mesh coneMesh = Mesh.Cone(verticalSegments, height, color1, color2, color3);
+        DrawMesh(coneMesh);
+    }
+
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, RawColor color1, RawColor color2, RawColor color3)
+    {
+        Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color1, color2, color3);
+        DrawMesh(cylinderMesh);
+    }
+
+    public void DrawTorus(float tubeRadius, float pipeRadius, int tubeSegments, int pipeSegments, RawColor colorOuter, RawColor colorInner)
+    {
+        Mesh torusMesh = Mesh.Torus(tubeRadius, pipeRadius, tubeSegments, pipeSegments, colorOuter, colorInner);
+        DrawMesh(torusMesh);
+    }
+
     public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3)
     {
         // wierzchołki do Clip Space
@@ -119,9 +158,9 @@ internal class Rasterizer
         {
             for (int x = minX; x <= maxX; x++)
             {
-                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 1)) continue;
-                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 1)) continue;
-                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 1)) continue;
+                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 0.5)) continue;
+                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 0.5)) continue;
+                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 0.5)) continue;
 
                 float lambda1 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / lambdaDenominator;
                 float lambda2 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / lambdaDenominator;
