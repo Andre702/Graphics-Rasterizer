@@ -29,19 +29,16 @@ internal class Rasterizer
     {
         if (mesh == null) throw new ArgumentNullException(nameof(mesh));
 
-        // Iteruj po indeksach w krokach co 3, aby uzyskać każdy trójkąt
         for (int i = 0; i < mesh.Indices.Count; i += 3)
         {
             int index1 = mesh.Indices[i];
             int index2 = mesh.Indices[i + 1];
             int index3 = mesh.Indices[i + 2];
 
-            // Pobierz dane wierzchołków na podstawie indeksów
             VertexData v1 = mesh.Vertices[index1];
             VertexData v2 = mesh.Vertices[index2];
             VertexData v3 = mesh.Vertices[index3];
 
-            // Narysuj pojedynczy trójkąt siatki
             DrawTriangle(v1, v2, v3);
         }
     }
@@ -58,15 +55,14 @@ internal class Rasterizer
         DrawMesh(cylinderMesh);
     }
 
-    public void DrawTorus(float tubeRadius, float pipeRadius, int tubeSegments, int pipeSegments, RawColor colorOuter, RawColor colorInner)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, RawColor color1, RawColor color2, RawColor color3)
     {
-        Mesh torusMesh = Mesh.Torus(tubeRadius, pipeRadius, tubeSegments, pipeSegments, colorOuter, colorInner);
+        Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color1, color2, color3);
         DrawMesh(torusMesh);
     }
 
     public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3)
     {
-        // wierzchołki do Clip Space
         Vector4 clip1 = _vertexProcessor.TransformPositionToClipSpace(v1.Position);
         Vector4 clip2 = _vertexProcessor.TransformPositionToClipSpace(v2.Position);
         Vector4 clip3 = _vertexProcessor.TransformPositionToClipSpace(v3.Position);
@@ -74,8 +70,8 @@ internal class Rasterizer
 
         if (clip1.W <= Epsilon && clip2.W <= Epsilon && clip3.W <= Epsilon)
         {
-            // cały trójkąt jest poza widokiem
-            return; // Cały trójkąt niewidoczny
+            // trójkąt jest poza widokiem
+            return;
         }
 
         // Clip Space -> Normalzie Coordinates
@@ -158,9 +154,9 @@ internal class Rasterizer
         {
             for (int x = minX; x <= maxX; x++)
             {
-                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 0.5)) continue;
-                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 0.5)) continue;
-                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 0.5)) continue;
+                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 1)) continue;
+                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 1)) continue;
+                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 1)) continue;
 
                 float lambda1 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / lambdaDenominator;
                 float lambda2 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / lambdaDenominator;
