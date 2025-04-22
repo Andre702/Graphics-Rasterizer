@@ -5,6 +5,7 @@ namespace RasteryzatorInator
     internal struct VertexData
     {
         public Vector3 Position;
+        public Vector3 Normal;
         public RawColor Color;
 
         public VertexData(Vector3 position, RawColor color)
