@@ -82,7 +82,7 @@ namespace RasteryzatorInator
         public LightDirectional(Vector3 direction, RawColor? ambient = null, RawColor? diffuse = null, RawColor? specular = null, float shininess = 32.0f)
             : base(ambient, diffuse, specular, shininess)
         {
-            Direction = (direction).Normalized();
+            Direction = direction.Normalized();
         }
 
         public override RawColor Calculate(Vector3 worldPosition, Vector3 worldNormal, Vector3 viewDirection, RawColor vertexBaseColor)

@@ -1,4 +1,6 @@
 ﻿using RasteryzatorInator.MathLibrary;
+using System.Diagnostics;
+using System.Drawing;
 namespace RasteryzatorInator;
 
 internal class Rasterizer
@@ -6,6 +8,8 @@ internal class Rasterizer
     private readonly Buffer _buffer;
     private readonly VertexProcessor _vertexProcessor;
     private float Epsilon = 0.00001f;
+
+    public List<Light> Lights { get; set; } = new List<Light>();
 
 
     public Rasterizer(Buffer buffer, VertexProcessor vertexProcessor)
@@ -43,10 +47,22 @@ internal class Rasterizer
         }
     }
 
+    public void DrawCone(int verticalSegments, float height, RawColor color)
+    {
+        Mesh coneMesh = Mesh.Cone(verticalSegments, height, color, color, color);
+        DrawMesh(coneMesh);
+    }
+
     public void DrawCone(int verticalSegments, float height, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color1, color2, color3);
         DrawMesh(coneMesh);
+    }
+
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, RawColor color)
+    {
+        Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color, color, color);
+        DrawMesh(cylinderMesh);
     }
 
     public void DrawCylinder(int verticalSegments, int heightSegments, float height, RawColor color1, RawColor color2, RawColor color3)
@@ -55,14 +71,74 @@ internal class Rasterizer
         DrawMesh(cylinderMesh);
     }
 
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, RawColor color)
+    {
+        Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color, color, color);
+        DrawMesh(torusMesh);
+    }
+
     public void DrawTorus(float R, float r, int outerSegments, int innerSegments, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color1, color2, color3);
         DrawMesh(torusMesh);
     }
 
+    private static RawColor AddColors(RawColor c1, RawColor c2)
+    {
+        int r = c1.R + c2.R; int g = c1.G + c2.G; int b = c1.B + c2.B;
+        return new RawColor((byte)Math.Clamp(r, 0, 255), (byte)Math.Clamp(g, 0, 255), (byte)Math.Clamp(b, 0, 255));
+    }
+
+    private RawColor CalculateVertexLighting(Vector3 worldPos, Vector3 worldNormal, Vector3 viewDir, RawColor baseColor)
+    {
+        RawColor finalColor = RawColor.Gray(0);
+        foreach (var light in Lights)
+        {
+            if (light != null && light.IsEnabled)
+            {
+                finalColor = AddColors(finalColor, light.Calculate(worldPos, worldNormal, viewDir, baseColor));
+            }
+        }
+        return finalColor;
+    }
+
     public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3)
     {
+        Matrix4 objectToWorld = _vertexProcessor.ObjectToWorld;
+        Matrix4 worldToView = _vertexProcessor.WorldToView;
+
+        Vector3 cameraWorldPosition = Vector3.Zero;
+
+        if (worldToView.TryInvert(out Matrix4 viewToWorld))
+        {
+            cameraWorldPosition = viewToWorld.Translation;
+        }
+        else
+        {
+            Debug.WriteLine("Warning: Could not invert WorldToView matrix. Using origin for camera position.");
+        }
+
+        // Przetwarzanie wierzchołka 1
+        Vector4 worldPos4_1 = objectToWorld * new Vector4(v1.Position, 1.0f);
+        Vector3 worldPos1 = worldPos4_1.Xyz;
+        Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
+        Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
+        RawColor litColor1 = CalculateVertexLighting(worldPos1, worldNormal1, viewDir1, v1.Color);
+
+        // Przetwarzanie wierzchołka 2
+        Vector4 worldPos4_2 = objectToWorld * new Vector4(v2.Position, 1.0f);
+        Vector3 worldPos2 = worldPos4_2.Xyz;
+        Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
+        Vector3 viewDir2 = (cameraWorldPosition - worldPos2).Normalized();
+        RawColor litColor2 = CalculateVertexLighting(worldPos2, worldNormal2, viewDir2, v2.Color);
+
+        // Przetwarzanie wierzchołka 3
+        Vector4 worldPos4_3 = objectToWorld * new Vector4(v3.Position, 1.0f);
+        Vector3 worldPos3 = worldPos4_3.Xyz;
+        Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
+        Vector3 viewDir3 = (cameraWorldPosition - worldPos3).Normalized();
+        RawColor litColor3 = CalculateVertexLighting(worldPos3, worldNormal3, viewDir3, v3.Color);
+
         Vector4 clip1 = _vertexProcessor.TransformPositionToClipSpace(v1.Position);
         Vector4 clip2 = _vertexProcessor.TransformPositionToClipSpace(v2.Position);
         Vector4 clip3 = _vertexProcessor.TransformPositionToClipSpace(v3.Position);
@@ -84,9 +160,9 @@ internal class Rasterizer
         Vector3 ndc3 = new Vector3(clip3.X * invW3, clip3.Y * invW3, clip3.Z * invW3);
 
         // Normalzie Coordinates -> Screen Position
-        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, v1.Color);
-        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, v2.Color);
-        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, v3.Color);
+        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, litColor1);
+        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, litColor2);
+        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, litColor3);
 
         float screenArea = (pv2.X - pv1.X) * (pv3.Y - pv1.Y) -
                            (pv2.Y - pv1.Y) * (pv3.X - pv1.X);
@@ -154,9 +230,9 @@ internal class Rasterizer
         {
             for (int x = minX; x <= maxX; x++)
             {
-                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 1)) continue;
-                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 1)) continue;
-                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 1)) continue;
+                if (dx12 * (y - y1) - dy12 * (x - x1) < (topLeftEdge1 ? 0 : 0)) continue;
+                if (dx23 * (y - y2) - dy23 * (x - x2) < (topLeftEdge2 ? 0 : 0)) continue;
+                if (dx31 * (y - y3) - dy31 * (x - x3) < (topLeftEdge3 ? 0 : 0)) continue;
 
                 float lambda1 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / lambdaDenominator;
                 float lambda2 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / lambdaDenominator;

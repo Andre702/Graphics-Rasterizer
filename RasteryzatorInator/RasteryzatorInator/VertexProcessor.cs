@@ -8,9 +8,17 @@ namespace RasteryzatorInator
         public Vector3 Normal;
         public RawColor Color;
 
+        public VertexData(Vector3 position, Vector3 normal, RawColor color)
+        {
+            Position = position;
+            Normal = normal;
+            Color = color;
+        }
+
         public VertexData(Vector3 position, RawColor color)
         {
             Position = position;
+            Normal = Vector3.Zero;
             Color = color;
         }
     }
@@ -23,6 +31,7 @@ namespace RasteryzatorInator
 
 
         public Matrix4 ModelViewProjectionMatrix => ViewToProjection * WorldToView * ObjectToWorld;
+
 
         public void SetPerspective(float fovYDegrees, float aspectRatio, float nearPlane, float farPlane)
         {

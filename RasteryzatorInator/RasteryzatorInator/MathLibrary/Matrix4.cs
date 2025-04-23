@@ -3,7 +3,7 @@
 public static class Values
 {
     public const float Epsilon = 0.00001f;
-} 
+}
 
 public struct Matrix4
 {
@@ -75,6 +75,12 @@ public struct Matrix4
             m[2, 0] * v.X + m[2, 1] * v.Y + m[2, 2] * v.Z + m[2, 3] * v.W, // Dot(Row2, v)
             m[3, 0] * v.X + m[3, 1] * v.Y + m[3, 2] * v.Z + m[3, 3] * v.W  // Dot(Row3, v)
         );
+    }
+
+    public Vector3 Translation
+    {
+        get => new Vector3(Col3.X, Col3.Y, Col3.Z);
+        set { Col3.X = value.X; Col3.Y = value.Y; Col3.Z = value.Z; }
     }
 
 
@@ -187,6 +193,78 @@ public struct Matrix4
             new Vector4(0, 0, (farPlane + nearPlane) * rangeInv, -1.0f),
             new Vector4(0, 0, 2.0f * farPlane * nearPlane * rangeInv, 0)
         );
+    }
+
+    public float Determinant()
+    {
+        float det = 0.0f;
+        det += this[0, 0] * MinorDeterminant(0, 0);
+        det -= this[0, 1] * MinorDeterminant(0, 1);
+        det += this[0, 2] * MinorDeterminant(0, 2);
+        det -= this[0, 3] * MinorDeterminant(0, 3);
+        return det;
+    }
+
+    private float MinorDeterminant(int rowToRemove, int colToRemove)
+    {
+        float[,] m = new float[3, 3];
+        int curRow = 0;
+        for (int r = 0; r < 4; r++)
+        {
+            if (r == rowToRemove) continue;
+            int curCol = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                if (c == colToRemove) continue;
+                m[curRow, curCol] = this[r, c];
+                curCol++;
+            }
+            curRow++;
+        }
+
+        return m[0, 0] * (m[1, 1] * m[2, 2] - m[1, 2] * m[2, 1])
+             - m[0, 1] * (m[1, 0] * m[2, 2] - m[1, 2] * m[2, 0])
+             + m[0, 2] * (m[1, 0] * m[2, 1] - m[1, 1] * m[2, 0]);
+    }
+
+    public bool TryInvert(out Matrix4 result)
+    {
+        result = Identity;
+        float det = Determinant();
+
+        // Użyj małego epsilona do porównania
+        if (MathF.Abs(det) < 0.000001)
+        {
+            return false;
+        }
+
+        float invDet = 1.0f / det;
+        Matrix4 adjoint = new Matrix4(false);
+
+        for (int r = 0; r < 4; r++)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                float minorDet = MinorDeterminant(r, c);
+                float cofactor = ((r + c) % 2 == 0 ? 1 : -1) * minorDet;
+                adjoint[c, r] = cofactor;
+            }
+        }
+        result.Col0 = adjoint.Col0 * invDet;
+        result.Col1 = adjoint.Col1 * invDet;
+        result.Col2 = adjoint.Col2 * invDet;
+        result.Col3 = adjoint.Col3 * invDet;
+
+        return true;
+    }
+
+    public Matrix4 Inverted()
+    {
+        if (TryInvert(out Matrix4 result))
+        {
+            return result;
+        }
+        throw new InvalidOperationException("Matrix is singular and cannot be inverted.");
     }
 
     public override string ToString()

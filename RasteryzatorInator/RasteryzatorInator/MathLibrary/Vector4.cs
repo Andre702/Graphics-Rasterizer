@@ -7,6 +7,8 @@
         public Vector4(float x, float y, float z, float w) { X = x; Y = y; Z = z; W = w; }
         public Vector4(Vector3 v, float w) : this(v.X, v.Y, v.Z, w) { }
 
+        public Vector3 Xyz => new Vector3(X, Y, Z);
+
         public static Vector4 Zero => new Vector4(0, 0, 0, 0);
         public static Vector4 One => new Vector4(1, 1, 1, 1);
 
@@ -41,7 +43,7 @@
         public static Vector4 operator *(float scalar, Vector4 a) => a * scalar;
         public static Vector4 operator /(Vector4 a, float scalar)
         {
-            if (MathF.Abs(scalar) < Values.Epsilon) throw new DivideByZeroException();
+            if (MathF.Abs(scalar) < 0.00001) throw new DivideByZeroException();
             float inv = 1.0f / scalar;
             return new Vector4(a.X * inv, a.Y * inv, a.Z * inv, a.W * inv);
         }
