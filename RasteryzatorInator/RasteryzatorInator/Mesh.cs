@@ -30,21 +30,17 @@ namespace RasteryzatorInator
         {
             if (Vertices == null || Indices == null || Vertices.Count == 0 || Indices.Count == 0)
             {
-                // Nie ma czego obliczać
                 return;
             }
 
-            // 1. Utwórz tablicę do akumulacji wektorów normalnych dla każdego wierzchołka
-            Vector3[] normalAccumulator = new Vector3[Vertices.Count]; // Inicjalizowana zerami
+            Vector3[] normalAccumulator = new Vector3[Vertices.Count];
 
-            // 2. Przejdź przez każdy trójkąt w siatce
             for (int i = 0; i < Indices.Count; i += 3)
             {
                 int index1 = Indices[i];
                 int index2 = Indices[i + 1];
                 int index3 = Indices[i + 2];
 
-                // Sprawdzenie poprawności indeksów (bezpieczeństwo)
                 if (index1 >= Vertices.Count || index2 >= Vertices.Count || index3 >= Vertices.Count ||
                     index1 < 0 || index2 < 0 || index3 < 0)
                 {
@@ -53,45 +49,35 @@ namespace RasteryzatorInator
                 }
 
 
-                // Pobierz pozycje wierzchołków trójkąta
                 Vector3 p1 = Vertices[index1].Position;
                 Vector3 p2 = Vertices[index2].Position;
                 Vector3 p3 = Vertices[index3].Position;
 
-                // Oblicz wektory krawędzi
                 Vector3 edge1 = p2 - p1;
                 Vector3 edge2 = p3 - p1;
 
-                // Oblicz normalną ściany (nieznormalizowaną - jej długość jest proporcjonalna do pola)
-                // Użycie nieznormalizowanej daje wagę większym trójkątom.
+
                 Vector3 faceNormal = Vector3.Cross(edge1, edge2);
 
-                // Sprawdzenie czy trójkąt nie jest zdegenerowany (ma zerowe pole)
-                if (faceNormal.LengthSquared() < 0.000001f) // Używamy LengthSquared dla wydajności
+                if (faceNormal.LengthSquared() < 0.000001f)
                 {
-                    continue; // Pomiń zdegenerowane trójkąty
+                    continue;
                 }
 
-                // Dodaj normalną ściany do akumulatorów dla każdego wierzchołka tego trójkąta
                 normalAccumulator[index1] += faceNormal;
                 normalAccumulator[index2] += faceNormal;
                 normalAccumulator[index3] += faceNormal;
             }
 
-            // 3. Przejdź przez wszystkie wierzchołki, znormalizuj skumulowane normalne i zaktualizuj wierzchołki
-            // Tworzymy nową listę, aby uniknąć problemów z modyfikacją struct w liście
             List<VertexData> updatedVertices = new List<VertexData>(Vertices.Count);
             for (int i = 0; i < Vertices.Count; i++)
             {
                 Vector3 accumulatedNormal = normalAccumulator[i];
                 Vector3 finalNormal;
 
-                // Znormalizuj skumulowaną normalną
                 if (accumulatedNormal.LengthSquared() < 0.000001f)
                 {
-                    // Jeśli skumulowana normalna jest zerowa (np. izolowany wierzchołek),
-                    // ustaw domyślną normalną (np. w górę)
-                    finalNormal = Vector3.UnitY; // lub (0,0,1) lub inna domyślna
+                    finalNormal = Vector3.UnitY;
                     System.Diagnostics.Debug.WriteLine($"Ostrzeżenie: Wierzchołek {i} ma zerową normalną po akumulacji.");
                 }
                 else
@@ -99,12 +85,9 @@ namespace RasteryzatorInator
                     finalNormal = accumulatedNormal.Normalized();
                 }
 
-                // Utwórz nowy obiekt VertexData z obliczoną normalną
-                // Zachowujemy oryginalną pozycję i kolor
                 updatedVertices.Add(new VertexData(Vertices[i].Position, finalNormal, Vertices[i].Color));
             }
 
-            // Zastąp starą listę wierzchołków nową, z poprawnymi normalnymi
             Vertices = updatedVertices;
         }
 
