@@ -41,7 +41,7 @@ class Program
             QuadraticAttenuation = 0.00f
         };
 
-        pointLight.SetSpotlight(new Vector3(0, 0, -1), 30);
+        pointLight.SetSpotlight(new Vector3(0.8f, -0.5f, -1), 30);
 
 
         rasterizer.Lights.Add(directionalLight);
@@ -67,13 +67,13 @@ class Program
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -40);
         vertexProcessor.Translate(new Vector3(3f, -1, 0));
-        rasterizer.DrawCylinder(32, 3, 2, new RawColor(255, 255, 0));
+        rasterizer.DrawCylinder(32, 2, 2, new RawColor(255, 255, 0));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -45);
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
 
-        rasterizer.DrawTorus(2, 1, 6, 6, new RawColor(0, 255, 255));
+        rasterizer.DrawTorus(2, 1, 32, 16, new RawColor(0, 255, 255));
 
         buffer.SaveTGA("output_rasterized.tga");
     }

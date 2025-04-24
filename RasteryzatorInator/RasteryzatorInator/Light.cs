@@ -4,19 +4,13 @@ namespace RasteryzatorInator
 {
     internal abstract class Light
     {
-        // Właściwości "materiału" narzucone przez to światło
-        public RawColor AmbientColor { get; set; } = new RawColor(25, 25, 25); // Jak powierzchnie reagują na ambient tego światła
-        public RawColor DiffuseColor { get; set; } = RawColor.Gray(255);      // Jak powierzchnie reagują na diffuse tego światła
-        public RawColor SpecularColor { get; set; } = RawColor.Gray(255);     // Jak powierzchnie reagują na specular tego światła
-        public float Shininess { get; set; } = 32.0f;                   // Połyskliwość narzucona przez to światło
-
-        // Można dodać ogólną intensywność, jeśli kolory powyżej to tylko odcienie,
-        // ale dla uproszczenia załóżmy, że kolory już zawierają intensywność.
-        // public float Intensity { get; set; } = 1.0f;
+        public RawColor AmbientColor { get; set; } = new RawColor(25, 25, 25);
+        public RawColor DiffuseColor { get; set; } = RawColor.Gray(255);
+        public RawColor SpecularColor { get; set; } = RawColor.Gray(255);
+        public float Shininess { get; set; } = 32.0f;
 
         public bool IsEnabled { get; set; } = true;
 
-        // Konstruktor może przyjmować te wartości
         protected Light(RawColor? ambient = null, RawColor? diffuse = null, RawColor? specular = null, float shininess = 32.0f)
         {
             AmbientColor = ambient ?? new RawColor(25, 25, 25);
@@ -25,18 +19,8 @@ namespace RasteryzatorInator
             Shininess = shininess;
         }
 
-        /// <summary>
-        /// Oblicza kolor wierzchołka pod wpływem TEGO światła, używając
-        /// właściwości "materiału" zdefiniowanych w tym świetle.
-        /// </summary>
-        /// <param name="worldPosition">Pozycja punktu w przestrzeni świata.</param>
-        /// <param name="worldNormal">Normalna powierzchni w przestrzeni świata.</param>
-        /// <param name="viewDirection">Znormalizowany kierunek od punktu do kamery.</param>
-        /// <param name="vertexBaseColor">Bazowy kolor (albedo) wierzchołka.</param>
-        /// <returns>Kolor wynikający z interakcji tego światła z punktem.</returns>
         public abstract RawColor Calculate(Vector3 worldPosition, Vector3 worldNormal, Vector3 viewDirection, RawColor vertexBaseColor);
 
-        // Metody pomocnicze (MultiplyColors, AddColors, ScaleColor - bez zmian jak w poprzedniej odpowiedzi)
         protected RawColor MultiplyColors(RawColor color1, RawColor color2)
         {
             float r = (color1.R / 255.0f) * (color2.R / 255.0f);
@@ -63,7 +47,7 @@ namespace RasteryzatorInator
 
         protected RawColor ScaleColor(RawColor color, float factor)
         {
-            factor = Math.Max(0f, factor); // Upewnijmy się, że factor nie jest ujemny
+            factor = Math.Max(0f, factor);
             float r = color.R * factor;
             float g = color.G * factor;
             float b = color.B * factor;
@@ -87,28 +71,21 @@ namespace RasteryzatorInator
 
         public override RawColor Calculate(Vector3 worldPosition, Vector3 worldNormal, Vector3 viewDirection, RawColor vertexBaseColor)
         {
-            Vector3 lightDir = -Direction; // Kierunek DO źródła światła
+            Vector3 lightDir = -Direction;
 
-            // Komponent Ambient (używa AmbientColor z tego światła)
-            // Nie jest modulowany przez vertexBaseColor
             RawColor ambientComp = AmbientColor;
 
-            // Komponent Diffuse (używa DiffuseColor z tego światła, modulowany przez vertexBaseColor)
             float diffFactor = MathF.Max(0f, Vector3.Dot(worldNormal, lightDir));
-            RawColor diffuseModulated = MultiplyColors(DiffuseColor, vertexBaseColor); // Modulacja przez bazowy kolor wierzchołka
+            RawColor diffuseModulated = MultiplyColors(DiffuseColor, vertexBaseColor);
             RawColor diffuseComp = ScaleColor(diffuseModulated, diffFactor);
 
-            // Komponent Specular (używa SpecularColor i Shininess z tego światła)
-            // Nie jest modulowany przez vertexBaseColor
             Vector3 halfwayDir = (lightDir + viewDirection).Normalized();
             float specFactorBase = MathF.Max(0f, Vector3.Dot(worldNormal, halfwayDir));
-            // Zapobiegaj odblaskom od spodu
             if (diffFactor <= 0) specFactorBase = 0;
 
             float specFactor = MathF.Pow(specFactorBase, Shininess);
             RawColor specularComp = ScaleColor(SpecularColor, specFactor);
 
-            // Suma komponentów
             return AddColors(AddColors(ambientComp, diffuseComp), specularComp);
         }
     }
@@ -139,12 +116,6 @@ namespace RasteryzatorInator
             SpotExponent = MathF.Max(0f, exponent);
         }
 
-        public void DisableSpotlight()
-        {
-            SpotCutoffCos = -1.0f;
-        }
-
-
         public override RawColor Calculate(Vector3 worldPosition, Vector3 worldNormal, Vector3 viewDirection, RawColor vertexBaseColor)
         {
             Vector3 lightVector = Position - worldPosition;
@@ -152,42 +123,33 @@ namespace RasteryzatorInator
             if (distance < 0.0001f) distance = 0.0001f;
             Vector3 lightDir = lightVector / distance;
 
-            // 1. Tłumienie
             float attenuation = 1.0f / (ConstantAttenuation + LinearAttenuation * distance + QuadraticAttenuation * distance * distance);
             attenuation = Math.Clamp(attenuation, 0f, 1f);
 
-            // 2. Spotlight
             float spotFactor = 1.0f;
             if (SpotCutoffCos > -1.0f)
             {
                 float angleCos = Vector3.Dot(SpotDirection, -lightDir);
                 if (angleCos < SpotCutoffCos)
                 {
-                    return RawColor.Gray(0); // Poza stożkiem
+                    return RawColor.Gray(0);
                 }
                 spotFactor = MathF.Pow(MathF.Max(0f, angleCos), SpotExponent);
             }
 
-            // 3. Obliczenia komponentów z uwzględnieniem tłumienia i spotlight
+            RawColor ambientComp = AmbientColor;
 
-            // Ambient (używa AmbientColor z tego światła, nie tłumiony, nie wpływa spotlight, nie modulowany)
-            RawColor ambientComp = AmbientColor; // Zauważ: Światło punktowe dodające ambient jest dziwne, ale zgodne z życzeniem
-
-            // Diffuse (używa DiffuseColor, modulowany przez vertexBaseColor, uwzględnia tłumienie i spotlight)
             float diffFactor = MathF.Max(0f, Vector3.Dot(worldNormal, lightDir));
             RawColor diffuseModulated = MultiplyColors(DiffuseColor, vertexBaseColor);
             RawColor diffuseComp = ScaleColor(diffuseModulated, diffFactor * attenuation * spotFactor);
 
-            // Specular (używa SpecularColor i Shininess, uwzględnia tłumienie i spotlight)
             Vector3 halfwayDir = (lightDir + viewDirection).Normalized();
             float specFactorBase = MathF.Max(0f, Vector3.Dot(worldNormal, halfwayDir));
-            // Zapobiegaj odblaskom od spodu
             if (diffFactor <= 0) specFactorBase = 0;
 
             float specFactor = MathF.Pow(specFactorBase, Shininess);
             RawColor specularComp = ScaleColor(SpecularColor, specFactor * attenuation * spotFactor);
 
-            // Suma komponentów
             return AddColors(AddColors(ambientComp, diffuseComp), specularComp);
         }
     }
