@@ -21,15 +21,15 @@ class Program
 
 
         var directionalLight = new LightDirectional(
-                direction: new Vector3(-0.5f, -1.0f, -0.7f).Normalized(), 
+                direction: new Vector3(0.5f, -1.0f, -0.7f).Normalized(),
                 ambient: new RawColor(20, 20, 20),
-                diffuse: new RawColor(200, 200, 200),
-                specular: new RawColor(255, 255, 255),
+                diffuse: new RawColor(100, 100, 100),
+                specular: new RawColor(100, 100, 100),
                 shininess: 32f
             );
 
         var pointLight = new LightPoint(
-            position: new Vector3(2f, 1f, 3f),
+            position: new Vector3(0f, 1f, 3f),
             ambient: new RawColor(10, 10, 10),
             diffuse: new RawColor(255, 230, 180),
             specular: new RawColor(255, 255, 255),
@@ -37,9 +37,11 @@ class Program
         )
         {
             ConstantAttenuation = 1.0f,
-            LinearAttenuation = 0.09f,
-            QuadraticAttenuation = 0.032f
+            LinearAttenuation = 0.00f,
+            QuadraticAttenuation = 0.00f
         };
+
+        pointLight.SetSpotlight(new Vector3(0, 0, -1), 30);
 
 
         rasterizer.Lights.Add(directionalLight);
@@ -71,7 +73,7 @@ class Program
         vertexProcessor.Rotate(Vector3.UnitX, -45);
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
 
-        rasterizer.DrawTorus(2, 1, 32, 16, new RawColor(0, 255, 255));
+        rasterizer.DrawTorus(2, 1, 6, 6, new RawColor(0, 255, 255));
 
         buffer.SaveTGA("output_rasterized.tga");
     }
