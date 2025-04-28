@@ -39,7 +39,7 @@ class Program
         var pointLight = new LightPoint(
             position: new Vector3(0f, 1f, 3f),
             ambient: new RawColor(10, 10, 10),
-            diffuse: new RawColor(255, 230, 180),
+            diffuse: new RawColor(220, 180, 150),
             specular: new RawColor(255, 255, 255),
             shininess: 32f
         )
@@ -49,7 +49,7 @@ class Program
             QuadraticAttenuation = 0.00f
         };
 
-        pointLight.SetSpotlight(new Vector3(0.8f, -0.5f, -1), 30);
+        pointLight.SetSpotlight(new Vector3(-0.2f, -0.5f, -1), 30);
 
 
         rasterizer.Lights.Add(directionalLight);
@@ -62,19 +62,20 @@ class Program
         vertexProcessor.SetPerspective(fovYDegrees, aspectRatio, nearPlane, farPlane);
 
         vertexProcessor.ResetObjectTransform();
-        vertexProcessor.Rotate(Vector3.UnitX, -30);
-        vertexProcessor.Translate(new Vector3(-2.6f, -1, 0));
-        rasterizer.DrawCone(8, 2, true, new RawColor(255, 255, 255));
+        vertexProcessor.Rotate(Vector3.UnitX, -45);
+        vertexProcessor.Translate(new Vector3(-1.9f, 0, 0));
+        vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
+        rasterizer.DrawTorus(2, 1, 32, 16, false, new RawColor(0, 255, 255));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -40);
-        vertexProcessor.Translate(new Vector3(3f, -1, 0));
+        vertexProcessor.Translate(new Vector3(4f, -1, 0));
         rasterizer.DrawCylinder(32, 2, 2, true, new RawColor(255, 255, 0));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -45);
+        vertexProcessor.Translate(new Vector3(1f, 0, 0));
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
-
         rasterizer.DrawTorus(2, 1, 32, 16, true, new RawColor(0, 255, 255));
 
         buffer.SaveTGA("output_rasterized.tga");
