@@ -92,7 +92,7 @@ internal class Rasterizer
         return new RawColor((byte)Math.Clamp(r, 0, 255), (byte)Math.Clamp(g, 0, 255), (byte)Math.Clamp(b, 0, 255));
     }
 
-    private RawColor CalculateVertexLighting(Vector3 worldPos, Vector3 worldNormal, Vector3 viewDir, RawColor baseColor)
+    private RawColor CalculateLight(Vector3 worldPos, Vector3 worldNormal, Vector3 viewDir, RawColor baseColor)
     {
         RawColor finalColor = RawColor.Gray(0);
         foreach (var light in Lights)
@@ -139,15 +139,15 @@ internal class Rasterizer
         {
             Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
-            litColor1 = CalculateVertexLighting(worldPos1, worldNormal1, viewDir1, v1.Color);
+            litColor1 = CalculateLight(worldPos1, worldNormal1, viewDir1, v1.Color);
 
             Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir2 = (cameraWorldPosition - worldPos2).Normalized();
-            litColor2 = CalculateVertexLighting(worldPos2, worldNormal2, viewDir2, v2.Color);
+            litColor2 = CalculateLight(worldPos2, worldNormal2, viewDir2, v2.Color);
 
             Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir3 = (cameraWorldPosition - worldPos3).Normalized();
-            litColor3 = CalculateVertexLighting(worldPos3, worldNormal3, viewDir3, v3.Color);
+            litColor3 = CalculateLight(worldPos3, worldNormal3, viewDir3, v3.Color);
         }
 
         Vector4 clip1 = _vertexProcessor.TransformPositionToClipSpace(v1.Position);
@@ -243,7 +243,6 @@ internal class Rasterizer
         float invArea = 1 / triangleArea;
 
         Vector3 triangleWorldNormal = Vector3.Zero;
-        bool useFlatNormal = false;
 
         RawColor flatColor = RawColor.Gray(0);
 
@@ -251,23 +250,7 @@ internal class Rasterizer
         {
             Vector3 edge1 = p2.WorldPos - p1.WorldPos;
             Vector3 edge2 = p3.WorldPos - p1.WorldPos;
-            triangleWorldNormal = Vector3.Cross(edge1, edge2);
-
-            if (triangleWorldNormal.LengthSquared() > Epsilon)
-            {
-                triangleWorldNormal = triangleWorldNormal.Normalized();
-
-                Vector3 representativeWorldPos = (p1.WorldPos + p2.WorldPos + p3.WorldPos) / 3.0f;
-
-                Vector3 viewDir = (_cameraPos - representativeWorldPos).Normalized();
-
-                RawColor baseColor = p1.Color;
-                flatColor = CalculateVertexLighting(representativeWorldPos, triangleWorldNormal, viewDir, baseColor);
-            }
-            else
-            {
-                flatColor = p1.Color;
-            }
+            triangleWorldNormal = Vector3.Cross(edge1, edge2).Normalized();
         }
 
         for (int y = minY; y <= maxY; y++)
@@ -284,7 +267,7 @@ internal class Rasterizer
 
                 // Interpolacja perspektywicznie poprawna
                 float interpInvW = lambda1 * p1.InvW + lambda2 * p2.InvW + lambda3 * p3.InvW;
-                if (MathF.Abs(interpInvW) < Epsilon) continue; // Unikaj dzielenia przez W=nieskończoność
+                if (MathF.Abs(interpInvW) < Epsilon) continue;
                 float w = 1 / interpInvW;
 
                 // Głębokość
@@ -297,7 +280,12 @@ internal class Rasterizer
 
                     if (shadeFlat)
                     {
-                        _buffer.ColorBuffer[pixelIndex] = flatColor;
+                        Vector3 interpWorldPos = InterpolateVector3(p1.WorldPos, p2.WorldPos, p3.WorldPos, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
+
+                        Vector3 viewDir = (_cameraPos - interpWorldPos).Normalized();
+                        RawColor baseColor = p1.Color;
+
+                        _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, triangleWorldNormal, viewDir, baseColor);
                     }
                     else
                     {
@@ -310,5 +298,25 @@ internal class Rasterizer
                 }
             }
         }
+    }
+
+    private Vector3 InterpolateVector3(Vector3 v1, Vector3 v2, Vector3 v3, float l1, float l2, float l3, float invW1, float invW2, float invW3, float w)
+    {
+        float x = (l1 * v1.X * invW1 + l2 * v2.X * invW2 + l3 * v3.X * invW3) * w;
+        float y = (l1 * v1.Y * invW1 + l2 * v2.Y * invW2 + l3 * v3.Y * invW3) * w;
+        float z = (l1 * v1.Z * invW1 + l2 * v2.Z * invW2 + l3 * v3.Z * invW3) * w;
+        return new Vector3(x, y, z);
+    }
+
+    private RawColor InterpolateColor(RawColor c1, RawColor c2, RawColor c3, float l1, float l2, float l3, float invW1, float invW2, float invW3, float w)
+    {
+        float r = (l1 * c1.R * invW1 + l2 * c2.R * invW2 + l3 * c3.R * invW3) * w;
+        float g = (l1 * c1.G * invW1 + l2 * c2.G * invW2 + l3 * c3.G * invW3) * w;
+        float b = (l1 * c1.B * invW1 + l2 * c2.B * invW2 + l3 * c3.B * invW3) * w;
+        return new RawColor(
+            (byte)Math.Clamp(r, 0f, 255f),
+            (byte)Math.Clamp(g, 0f, 255f),
+            (byte)Math.Clamp(b, 0f, 255f)
+        );
     }
 }
