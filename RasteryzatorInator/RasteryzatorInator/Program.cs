@@ -17,7 +17,15 @@ class Program
         buffer.ClearDepth(1.0f);
 
         VertexProcessor vertexProcessor = new VertexProcessor();
-        Rasterizer rasterizer = new Rasterizer(buffer, vertexProcessor);
+
+        // kamera
+        Vector3 eyePosition = new Vector3(0, 0, 5);
+        Vector3 focusPoint = Vector3.Zero;
+        Vector3 upVector = Vector3.Up;
+        vertexProcessor.SetLookAt(eyePosition, focusPoint, upVector);
+
+
+        Rasterizer rasterizer = new Rasterizer(buffer, vertexProcessor, eyePosition);
 
 
         var directionalLight = new LightDirectional(
@@ -47,12 +55,6 @@ class Program
         rasterizer.Lights.Add(directionalLight);
         rasterizer.Lights.Add(pointLight);
 
-        // kamera
-        Vector3 eyePosition = new Vector3(0, 0, 5);
-        Vector3 focusPoint = Vector3.Zero;
-        Vector3 upVector = Vector3.Up;
-        vertexProcessor.SetLookAt(eyePosition, focusPoint, upVector);
-
         float fovYDegrees = 60.0f;
         float aspectRatio = (float)width / height;
         float nearPlane = 0.1f;
@@ -62,18 +64,18 @@ class Program
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -30);
         vertexProcessor.Translate(new Vector3(-2.6f, -1, 0));
-        rasterizer.DrawCone(8, 2, new RawColor(255, 255, 255));
+        rasterizer.DrawCone(8, 2, true, new RawColor(255, 255, 255));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -40);
         vertexProcessor.Translate(new Vector3(3f, -1, 0));
-        rasterizer.DrawCylinder(32, 2, 2, new RawColor(255, 255, 0));
+        rasterizer.DrawCylinder(32, 2, 2, true, new RawColor(255, 255, 0));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -45);
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
 
-        rasterizer.DrawTorus(2, 1, 32, 16, new RawColor(0, 255, 255));
+        rasterizer.DrawTorus(2, 1, 32, 16, true, new RawColor(0, 255, 255));
 
         buffer.SaveTGA("output_rasterized.tga");
     }

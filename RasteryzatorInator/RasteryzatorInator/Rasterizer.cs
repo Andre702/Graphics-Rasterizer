@@ -7,15 +7,17 @@ internal class Rasterizer
 {
     private readonly Buffer _buffer;
     private readonly VertexProcessor _vertexProcessor;
+    private readonly Vector3 _cameraPos;
     private float Epsilon = 0.00001f;
 
     public List<Light> Lights { get; set; } = new List<Light>();
 
 
-    public Rasterizer(Buffer buffer, VertexProcessor vertexProcessor)
+    public Rasterizer(Buffer buffer, VertexProcessor vertexProcessor, Vector3 cameraPos)
     {
-        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
-        _vertexProcessor = vertexProcessor ?? throw new ArgumentNullException(nameof(vertexProcessor));
+        _buffer = buffer;
+        _vertexProcessor = vertexProcessor;
+        _cameraPos = cameraPos;
     }
 
     private struct ProjectedVertex
@@ -24,15 +26,16 @@ internal class Rasterizer
         public RawColor Color;
         public float InvW;
 
+        public Vector3 WorldPos;
+        public Vector3 WorldNormal;
+
         public float X => ScreenPos.X;
         public float Y => ScreenPos.Y;
         public float Z => ScreenPos.Z;
     }
 
-    public void DrawMesh(Mesh mesh)
+    public void DrawMesh(Mesh mesh, bool shadeFlat)
     {
-        if (mesh == null) throw new ArgumentNullException(nameof(mesh));
-
         for (int i = 0; i < mesh.Indices.Count; i += 3)
         {
             int index1 = mesh.Indices[i];
@@ -43,44 +46,44 @@ internal class Rasterizer
             VertexData v2 = mesh.Vertices[index2];
             VertexData v3 = mesh.Vertices[index3];
 
-            DrawTriangle(v1, v2, v3);
+            DrawTriangle(v1, v2, v3, shadeFlat);
         }
     }
 
-    public void DrawCone(int verticalSegments, float height, RawColor color)
+    public void DrawCone(int verticalSegments, float height, bool shadeFlat, RawColor color)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color, color, color);
-        DrawMesh(coneMesh);
+        DrawMesh(coneMesh, shadeFlat);
     }
 
-    public void DrawCone(int verticalSegments, float height, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCone(int verticalSegments, float height, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color1, color2, color3);
-        DrawMesh(coneMesh);
+        DrawMesh(coneMesh, shadeFlat);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, RawColor color)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, bool shadeFlat, RawColor color)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color, color, color);
-        DrawMesh(cylinderMesh);
+        DrawMesh(cylinderMesh, shadeFlat);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color1, color2, color3);
-        DrawMesh(cylinderMesh);
+        DrawMesh(cylinderMesh, shadeFlat);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, RawColor color)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, bool shadeFlat, RawColor color)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color, color, color);
-        DrawMesh(torusMesh);
+        DrawMesh(torusMesh, shadeFlat);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color1, color2, color3);
-        DrawMesh(torusMesh);
+        DrawMesh(torusMesh, shadeFlat);
     }
 
     private static RawColor AddColors(RawColor c1, RawColor c2)
@@ -102,7 +105,7 @@ internal class Rasterizer
         return finalColor;
     }
 
-    public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3)
+    public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3, bool shadeFlat)
     {
         Matrix4 objectToWorld = _vertexProcessor.ObjectToWorld;
         Matrix4 worldToView = _vertexProcessor.WorldToView;
@@ -121,23 +124,31 @@ internal class Rasterizer
         // Przetwarzanie wierzchołka 1
         Vector4 worldPos4_1 = objectToWorld * new Vector4(v1.Position, 1.0f);
         Vector3 worldPos1 = worldPos4_1.Xyz;
-        Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
-        Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
-        RawColor litColor1 = CalculateVertexLighting(worldPos1, worldNormal1, viewDir1, v1.Color);
+        RawColor litColor1 = v1.Color;
 
-        // Przetwarzanie wierzchołka 2
         Vector4 worldPos4_2 = objectToWorld * new Vector4(v2.Position, 1.0f);
         Vector3 worldPos2 = worldPos4_2.Xyz;
-        Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
-        Vector3 viewDir2 = (cameraWorldPosition - worldPos2).Normalized();
-        RawColor litColor2 = CalculateVertexLighting(worldPos2, worldNormal2, viewDir2, v2.Color);
+        RawColor litColor2 = v1.Color;
 
-        // Przetwarzanie wierzchołka 3
         Vector4 worldPos4_3 = objectToWorld * new Vector4(v3.Position, 1.0f);
         Vector3 worldPos3 = worldPos4_3.Xyz;
-        Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
-        Vector3 viewDir3 = (cameraWorldPosition - worldPos3).Normalized();
-        RawColor litColor3 = CalculateVertexLighting(worldPos3, worldNormal3, viewDir3, v3.Color);
+        RawColor litColor3 = v1.Color;
+
+
+        if (!shadeFlat) // Oblicz osobne kolory dla wierzchołków przy cieniowaniu per Vertex:
+        {
+            Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
+            Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
+            litColor1 = CalculateVertexLighting(worldPos1, worldNormal1, viewDir1, v1.Color);
+
+            Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
+            Vector3 viewDir2 = (cameraWorldPosition - worldPos2).Normalized();
+            litColor2 = CalculateVertexLighting(worldPos2, worldNormal2, viewDir2, v2.Color);
+
+            Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
+            Vector3 viewDir3 = (cameraWorldPosition - worldPos3).Normalized();
+            litColor3 = CalculateVertexLighting(worldPos3, worldNormal3, viewDir3, v3.Color);
+        }
 
         Vector4 clip1 = _vertexProcessor.TransformPositionToClipSpace(v1.Position);
         Vector4 clip2 = _vertexProcessor.TransformPositionToClipSpace(v2.Position);
@@ -164,6 +175,10 @@ internal class Rasterizer
         ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, litColor2);
         ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, litColor3);
 
+        pv1.WorldPos = worldPos1;
+        pv2.WorldPos = worldPos2;
+        pv3.WorldPos = worldPos3;
+
         float screenArea = (pv2.X - pv1.X) * (pv3.Y - pv1.Y) -
                            (pv2.Y - pv1.Y) * (pv3.X - pv1.X);
 
@@ -173,7 +188,7 @@ internal class Rasterizer
             return;
         }
 
-        RasterizeScreenTriangle(pv1, pv2, pv3, screenArea);
+        RasterizeScreenTriangle(pv1, pv2, pv3, screenArea, shadeFlat);
     }
 
     private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color)
@@ -196,7 +211,8 @@ internal class Rasterizer
         };
     }
 
-    private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3, float triangleArea)
+    private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3, float triangleArea,
+        bool shadeFlat)
     {
         int width = _buffer.Width;
         int height = _buffer.Height;
@@ -226,6 +242,34 @@ internal class Rasterizer
 
         float invArea = 1 / triangleArea;
 
+        Vector3 triangleWorldNormal = Vector3.Zero;
+        bool useFlatNormal = false;
+
+        RawColor flatColor = RawColor.Gray(0);
+
+        if (shadeFlat)
+        {
+            Vector3 edge1 = p2.WorldPos - p1.WorldPos;
+            Vector3 edge2 = p3.WorldPos - p1.WorldPos;
+            triangleWorldNormal = Vector3.Cross(edge1, edge2);
+
+            if (triangleWorldNormal.LengthSquared() > Epsilon)
+            {
+                triangleWorldNormal = triangleWorldNormal.Normalized();
+
+                Vector3 representativeWorldPos = (p1.WorldPos + p2.WorldPos + p3.WorldPos) / 3.0f;
+
+                Vector3 viewDir = (_cameraPos - representativeWorldPos).Normalized();
+
+                RawColor baseColor = p1.Color;
+                flatColor = CalculateVertexLighting(representativeWorldPos, triangleWorldNormal, viewDir, baseColor);
+            }
+            else
+            {
+                flatColor = p1.Color;
+            }
+        }
+
         for (int y = minY; y <= maxY; y++)
         {
             for (int x = minX; x <= maxX; x++)
@@ -251,12 +295,18 @@ internal class Rasterizer
                 {
                     _buffer.DepthBuffer[pixelIndex] = depth;
 
-                    // Kolor
-                    float r = (lambda1 * p1.Color.R * p1.InvW + lambda2 * p2.Color.R * p2.InvW + lambda3 * p3.Color.R * p3.InvW) * w;
-                    float g = (lambda1 * p1.Color.G * p1.InvW + lambda2 * p2.Color.G * p2.InvW + lambda3 * p3.Color.G * p3.InvW) * w;
-                    float b = (lambda1 * p1.Color.B * p1.InvW + lambda2 * p2.Color.B * p2.InvW + lambda3 * p3.Color.B * p3.InvW) * w;
+                    if (shadeFlat)
+                    {
+                        _buffer.ColorBuffer[pixelIndex] = flatColor;
+                    }
+                    else
+                    {
+                        float r = (lambda1 * p1.Color.R * p1.InvW + lambda2 * p2.Color.R * p2.InvW + lambda3 * p3.Color.R * p3.InvW) * w;
+                        float g = (lambda1 * p1.Color.G * p1.InvW + lambda2 * p2.Color.G * p2.InvW + lambda3 * p3.Color.G * p3.InvW) * w;
+                        float b = (lambda1 * p1.Color.B * p1.InvW + lambda2 * p2.Color.B * p2.InvW + lambda3 * p3.Color.B * p3.InvW) * w;
 
-                    _buffer.ColorBuffer[pixelIndex] = new RawColor((byte)r, (byte)g, (byte)b);
+                        _buffer.ColorBuffer[pixelIndex] = new RawColor((byte)r, (byte)g, (byte)b);
+                    }
                 }
             }
         }
