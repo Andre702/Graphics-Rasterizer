@@ -1,6 +1,6 @@
 ﻿using RasteryzatorInator.MathLibrary;
 using System.Diagnostics;
-using System.Drawing;
+
 namespace RasteryzatorInator;
 
 public enum ShadingMode
@@ -15,6 +15,8 @@ internal class Rasterizer
     private readonly Buffer _buffer;
     private readonly VertexProcessor _vertexProcessor;
     private readonly Vector3 _cameraPos;
+    private Texture? _currentTexture;
+    private bool _applyLight = true;
     private float Epsilon = 0.00001f;
 
     public List<Light> Lights { get; set; } = new List<Light>();
@@ -35,7 +37,7 @@ internal class Rasterizer
 
         public Vector3 WorldPos;
         public Vector3 WorldNormal;
-        //public Vector2 TexCoord;
+        public Vector2 TexCoord;
 
         public float X => ScreenPos.X;
         public float Y => ScreenPos.Y;
@@ -58,40 +60,54 @@ internal class Rasterizer
         }
     }
 
-    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color)
+    private void DrawPrimitive(Mesh mesh, ShadingMode shadingMode, bool applyLight, Texture? texture)
+    {
+        _applyLight = applyLight;
+        if (texture != null)
+        {
+            _currentTexture = texture;
+            mesh.ApplyCylindricalTextureMapping();
+        }
+        else _currentTexture = null;
+
+        DrawMesh(mesh, shadingMode);
+    }
+
+    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color, bool applyLight, Texture? texture = null)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color, color, color);
-        DrawMesh(coneMesh, shadingMode);
+        DrawPrimitive(coneMesh, shadingMode, applyLight, texture);
     }
 
-    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3, bool applyLight, Texture? texture = null)
     {
+
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color1, color2, color3);
-        DrawMesh(coneMesh, shadingMode);
+        DrawPrimitive(coneMesh, shadingMode, applyLight, texture);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color, bool applyLight, Texture? texture = null)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color, color, color);
-        DrawMesh(cylinderMesh, shadingMode);
+        DrawPrimitive(cylinderMesh, shadingMode, applyLight, texture);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3, bool applyLight, Texture? texture = null)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color1, color2, color3);
-        DrawMesh(cylinderMesh, shadingMode);
+        DrawPrimitive(cylinderMesh, shadingMode, applyLight, texture);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color, bool applyLight, Texture? texture = null)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color, color, color);
-        DrawMesh(torusMesh, shadingMode);
+        DrawPrimitive(torusMesh, shadingMode, applyLight, texture);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3, bool applyLight, Texture? texture = null)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color1, color2, color3);
-        DrawMesh(torusMesh, shadingMode);
+        DrawPrimitive(torusMesh, shadingMode, applyLight, texture);
     }
 
     private static RawColor AddColors(RawColor c1, RawColor c2)
@@ -146,8 +162,9 @@ internal class Rasterizer
         Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
         Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
 
-        if (shadingMode == ShadingMode.Gouraud) // Oblicz osobne kolory dla wierzchołków przy cieniowaniu per Vertex:
+        if (shadingMode == ShadingMode.Gouraud) // osobne kolory dla wierzchołków przy cieniowaniu per Vertex:
         {
+            // Ignoruje tekstury! 
             Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
             colorForPv1 = CalculateLight(worldPos1, worldNormal1, viewDir1, v1.Color);
 
@@ -179,13 +196,10 @@ internal class Rasterizer
         Vector3 ndc3 = new Vector3(clip3.X * invW3, clip3.Y * invW3, clip3.Z * invW3);
 
         // Normalzie Coordinates -> Screen Position
-        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, colorForPv1, worldNormal1);
-        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, colorForPv2, worldNormal2);
-        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, colorForPv3, worldNormal3);
+        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, colorForPv1, worldNormal1, worldPos1, v1.TexCoord);
+        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, colorForPv2, worldNormal2, worldPos2, v2.TexCoord);
+        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, colorForPv3, worldNormal3, worldPos3, v3.TexCoord);
 
-        pv1.WorldPos = worldPos1;
-        pv2.WorldPos = worldPos2;
-        pv3.WorldPos = worldPos3;
 
         float screenArea = (pv2.X - pv1.X) * (pv3.Y - pv1.Y) -
                            (pv2.Y - pv1.Y) * (pv3.X - pv1.X);
@@ -199,7 +213,7 @@ internal class Rasterizer
         RasterizeScreenTriangle(pv1, pv2, pv3, screenArea, shadingMode);
     }
 
-    private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color, Vector3 worldNormal)
+    private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color, Vector3 worldNormal, Vector3 worldPosition, Vector2 texCoord)
     {
         int width = _buffer.Width;
         int height = _buffer.Height;
@@ -216,7 +230,9 @@ internal class Rasterizer
             ScreenPos = new Vector3(screenX, screenY, depthZ),
             Color = color,
             InvW = invW,
-            WorldNormal = worldNormal
+            WorldPos = worldPosition,
+            WorldNormal = worldNormal,
+            TexCoord = texCoord
         };
     }
 
@@ -282,6 +298,14 @@ internal class Rasterizer
                 // Głębokość
                 float depth = (lambda1 * p1.Z * p1.InvW + lambda2 * p2.Z * p2.InvW + lambda3 * p3.Z * p3.InvW) * w;
 
+                Vector2 interpTexCoord = Vector2.Zero;
+                if (_currentTexture != null)
+                {
+                    interpTexCoord = InterpolateVector2(p1.TexCoord, p2.TexCoord, p3.TexCoord,
+                                          lambda1, lambda2, lambda3,
+                                          p1.InvW, p2.InvW, p3.InvW, w);
+                }
+
                 int pixelIndex = y * width + x;
                 if (depth >= 0 && depth < _buffer.DepthBuffer[pixelIndex])
                 {
@@ -290,19 +314,20 @@ internal class Rasterizer
                     if (shadingMode == ShadingMode.Flat)
                     {
                         Vector3 interpWorldPos = InterpolateVector3(p1.WorldPos, p2.WorldPos, p3.WorldPos, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
-
                         Vector3 viewDir = (_cameraPos - interpWorldPos).Normalized();
-                        // bazowy kolor brany jest z wierzchołka (możliwe że to sprawi problemy) -------------------------
-                        RawColor baseColor = p1.Color;
 
-                        _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, triangleWorldNormal, viewDir, baseColor);
+                        RawColor baseColor = p1.Color;
+                        if (_currentTexture != null) baseColor = _currentTexture.Sample(interpTexCoord.X, interpTexCoord.Y);
+
+                        if (_applyLight) _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, triangleWorldNormal, viewDir, baseColor);
+                        else _buffer.ColorBuffer[pixelIndex] = baseColor;
                     }
+
                     else if (shadingMode == ShadingMode.Phong)
                     {
                         Vector3 interpWorldPos = InterpolateVector3(p1.WorldPos, p2.WorldPos, p3.WorldPos, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
                         Vector3 viewDir = (_cameraPos - interpWorldPos).Normalized();
 
-                        // Normalna piksela interpolowana z normalnych wierzchołków.
                         Vector3 pixelNormal = InterpolateNormal(p1.WorldNormal, p2.WorldNormal, p3.WorldNormal, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
                         if (pixelNormal.LengthSquared() < Epsilon)
                         {
@@ -310,10 +335,14 @@ internal class Rasterizer
                             if (pixelNormal.LengthSquared() < Epsilon) pixelNormal = Vector3.UnitY;
                         }
 
-                        // tutaj bazowy kolor jest interpolowany (sprawdzić czy działa dla tekstur) ----------------------------------
-                        RawColor baseMaterialColor = InterpolateColor(p1.Color, p2.Color, p3.Color, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
-                        _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, pixelNormal, viewDir, baseMaterialColor);
+                        RawColor baseMaterialColor;
+                        if (_currentTexture != null) baseMaterialColor = _currentTexture.Sample(interpTexCoord.X, interpTexCoord.Y);
+                        else baseMaterialColor = InterpolateColor(p1.Color, p2.Color, p3.Color, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
+
+                        if (_applyLight) _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, pixelNormal, viewDir, baseMaterialColor);
+                        else _buffer.ColorBuffer[pixelIndex] = baseMaterialColor;
                     }
+
                     else
                     {
                         float r = (lambda1 * p1.Color.R * p1.InvW + lambda2 * p2.Color.R * p2.InvW + lambda3 * p3.Color.R * p3.InvW) * w;
@@ -325,6 +354,16 @@ internal class Rasterizer
                 }
             }
         }
+    }
+
+    private Vector2 InterpolateVector2(Vector2 v1, Vector2 v2, Vector2 v3,
+                                   float l1, float l2, float l3,
+                                   float invW1, float invW2, float invW3, float w)
+    {
+        // Atrybut_i / w_i  ->  (A_i/w_i) * lambda_i ... sum -> result * w_persp
+        float x = (l1 * v1.X * invW1 + l2 * v2.X * invW2 + l3 * v3.X * invW3) * w;
+        float y = (l1 * v1.Y * invW1 + l2 * v2.Y * invW2 + l3 * v3.Y * invW3) * w;
+        return new Vector2(x, y);
     }
 
     private Vector3 InterpolateVector3(Vector3 v1, Vector3 v2, Vector3 v3, float l1, float l2, float l3, float invW1, float invW2, float invW3, float w)
@@ -339,17 +378,13 @@ internal class Rasterizer
                                    float l1, float l2, float l3,
                                    float invW1, float invW2, float invW3, float w)
     {
-        // Interpolacja komponentów normalnej podzielonych przez w perspektywiczne
         float nx_w = l1 * n1.X * invW1 + l2 * n2.X * invW2 + l3 * n3.X * invW3;
         float ny_w = l1 * n1.Y * invW1 + l2 * n2.Y * invW2 + l3 * n3.Y * invW3;
         float nz_w = l1 * n1.Z * invW1 + l2 * n2.Z * invW2 + l3 * n3.Z * invW3;
 
-        // Mnożenie przez w perspektywiczne
         Vector3 interpolatedNormal = new Vector3(nx_w * w, ny_w * w, nz_w * w);
 
-        // Normalizuj zinterpolowaną normalną
-        // (NormalizedSafe to metoda, która sprawdza długość przed normalizacją, aby uniknąć NaN)
-        return interpolatedNormal.Normalized(); // Jeśli nie masz NormalizedSafe(), użyj standardowej Normalizuj i obsłuż przypadek zerowej długości
+        return interpolatedNormal.Normalized();
     }
 
     private RawColor InterpolateColor(RawColor c1, RawColor c2, RawColor c3, float l1, float l2, float l3, float invW1, float invW2, float invW3, float w)

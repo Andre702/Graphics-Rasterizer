@@ -1,6 +1,4 @@
 ﻿using RasteryzatorInator.MathLibrary;
-using System.Diagnostics;
-using System.Drawing;
 
 namespace RasteryzatorInator
 {
@@ -383,5 +381,68 @@ namespace RasteryzatorInator
             return new Mesh(vertices, indices);
         }
 
+
+        public void ApplyCylindricalTextureMapping(int axis = 1)
+        {
+            if (Vertices == null || Vertices.Count == 0) return;
+
+            //granice obiektu wzdłuż osi mapowania
+            float minCoord = float.MaxValue;
+            float maxCoord = float.MinValue;
+
+            for (int i = 0; i < Vertices.Count; i++)
+            {
+                float val;
+                if (axis == 0) val = Vertices[i].Position.X;      // Mapowanie wokół X
+                else if (axis == 1) val = Vertices[i].Position.Y; // Mapowanie wokół Y
+                else val = Vertices[i].Position.Z;                // Mapowanie wokół Z
+
+                float v_coord_candidate;
+                if (axis == 0) v_coord_candidate = Vertices[i].Position.Y;
+                else if (axis == 1) v_coord_candidate = Vertices[i].Position.Y;
+                else v_coord_candidate = Vertices[i].Position.Y;
+
+
+                minCoord = Math.Min(minCoord, v_coord_candidate);
+                maxCoord = Math.Max(maxCoord, v_coord_candidate);
+            }
+
+            float coordRange = maxCoord - minCoord;
+            if (Math.Abs(coordRange) < 0.00001f) coordRange = 1.0f;
+
+            List<VertexData> updatedVertices = new List<VertexData>(Vertices.Count);
+            for (int i = 0; i < Vertices.Count; i++)
+            {
+                VertexData currentVertex = Vertices[i];
+                Vector3 pos = currentVertex.Position;
+                float u, v;
+
+                // Współrzędna V (wysokość wzdłuż osi cylindra)
+                float v_coord_val;
+                if (axis == 0) v_coord_val = pos.Y;
+                else if (axis == 1) v_coord_val = pos.Y;
+                else v_coord_val = pos.Y;
+
+                v = (v_coord_val - minCoord) / coordRange;
+                v = Math.Clamp(v, 0.0f, 1.0f);
+
+                // Współrzędna U (kąt wokół osi cylindra)
+                if (axis == 0) // Mapowanie wokół osi X
+                {
+                    u = (MathF.Atan2(pos.Z, pos.Y) + MathF.PI) / (2.0f * MathF.PI); // [-PI, PI] + PI -> [0, 2PI]
+                }
+                else if (axis == 1) // Mapowanie wokół osi Y
+                {
+                    u = (MathF.Atan2(pos.X, pos.Z) + MathF.PI) / (2.0f * MathF.PI); // [-PI, PI]
+                }
+                else // Mapowanie wokół osi Z
+                {
+                    u = (MathF.Atan2(pos.X, pos.Y) + MathF.PI) / (2.0f * MathF.PI); 
+                }
+
+                updatedVertices.Add(new VertexData(pos, currentVertex.Normal, currentVertex.Color, new Vector2(u, v)));
+            }
+            Vertices = updatedVertices;
+        }
     }
 }
