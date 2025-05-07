@@ -31,7 +31,7 @@ class Program
         var directionalLight = new LightDirectional(
                 direction: new Vector3(0.5f, -1.0f, -0.7f).Normalized(),
                 ambient: new RawColor(20, 20, 20),
-                diffuse: new RawColor(200, 200, 200),
+                diffuse: new RawColor(200, 160, 140),
                 specular: new RawColor(20, 20, 20),
                 shininess: 32f
             );
@@ -121,7 +121,7 @@ class Program
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -40);
-        vertexProcessor.Translate(new Vector3(3f, -1, 0));
+        vertexProcessor.Translate(new Vector3(2.6f, -1, 0));
         rasterizer.DrawCylinder(16, 2, 2, ShadingMode.Phong, new RawColor(255, 255, 0), true, bricksTexture);
 
         vertexProcessor.ResetObjectTransform();
@@ -131,7 +131,7 @@ class Program
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -20);
-        vertexProcessor.Translate(new Vector3(-3f, -1, 0));
+        vertexProcessor.Translate(new Vector3(-2.6f, -1, 0));
         rasterizer.DrawCone(16, 2, ShadingMode.Phong, new RawColor(255, 255, 0), false, bricksTexture);
 
 
