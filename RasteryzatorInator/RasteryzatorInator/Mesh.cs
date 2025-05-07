@@ -21,12 +21,6 @@ namespace RasteryzatorInator
             CalculateNormals();
         }
 
-        private Mesh(List<VertexData> vertices, List<int> indices, bool skipNormalCalculation)
-        {
-            Vertices = vertices;
-            Indices = indices;
-        }
-
         public void CalculateNormals()
         {
 

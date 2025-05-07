@@ -7,20 +7,19 @@ namespace RasteryzatorInator
         public Vector3 Position;
         public Vector3 Normal;
         public RawColor Color;
+        public Vector3 TexCoord;
 
-        public VertexData(Vector3 position, Vector3 normal, RawColor color)
+        public VertexData(Vector3 position, Vector3 normal, RawColor color, Vector3 textCoord)
         {
             Position = position;
             Normal = normal;
             Color = color;
+            TexCoord = textCoord;
         }
 
-        public VertexData(Vector3 position, RawColor color)
-        {
-            Position = position;
-            Normal = Vector3.Zero;
-            Color = color;
-        }
+        public VertexData(Vector3 position, Vector3 normal, RawColor color) : this(position, normal, color, Vector3.Zero) { }
+
+        public VertexData(Vector3 position, RawColor color) : this(position, Vector3.Zero, color, Vector3.Zero) { }
     }
 
     internal class VertexProcessor

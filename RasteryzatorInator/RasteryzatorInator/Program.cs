@@ -65,18 +65,18 @@ class Program
         vertexProcessor.Rotate(Vector3.UnitX, -45);
         vertexProcessor.Translate(new Vector3(-1.9f, 0, 0));
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
-        rasterizer.DrawTorus(2, 1, 32, 16, false, new RawColor(0, 255, 255));
+        rasterizer.DrawTorus(2, 1, 32, 16, ShadingMode.Flat, new RawColor(0, 255, 255));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -40);
         vertexProcessor.Translate(new Vector3(4f, -1, 0));
-        rasterizer.DrawCylinder(32, 2, 2, true, new RawColor(255, 255, 0));
+        rasterizer.DrawCylinder(32, 2, 2, ShadingMode.Gouraud, new RawColor(255, 255, 0));
 
         vertexProcessor.ResetObjectTransform();
         vertexProcessor.Rotate(Vector3.UnitX, -45);
         vertexProcessor.Translate(new Vector3(1f, 0, 0));
         vertexProcessor.Scale(new Vector3(0.5f, 0.5f, 0.5f));
-        rasterizer.DrawTorus(2, 1, 32, 16, true, new RawColor(0, 255, 255));
+        rasterizer.DrawTorus(2, 1, 32, 16, ShadingMode.Phong, new RawColor(0, 255, 255));
 
         buffer.SaveTGA("output_rasterized.tga");
     }

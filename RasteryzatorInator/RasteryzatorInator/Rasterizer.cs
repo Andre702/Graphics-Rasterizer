@@ -3,6 +3,13 @@ using System.Diagnostics;
 using System.Drawing;
 namespace RasteryzatorInator;
 
+public enum ShadingMode
+{
+    Flat,    // jedna normalna na trójkąt, oświetlenie per piksel
+    Gouraud, // po wierzchołkach, interpolacja koloru
+    Phong    // interpolacja normalnych, oświetlenie per piksel
+}
+
 internal class Rasterizer
 {
     private readonly Buffer _buffer;
@@ -28,13 +35,14 @@ internal class Rasterizer
 
         public Vector3 WorldPos;
         public Vector3 WorldNormal;
+        //public Vector2 TexCoord;
 
         public float X => ScreenPos.X;
         public float Y => ScreenPos.Y;
         public float Z => ScreenPos.Z;
     }
 
-    public void DrawMesh(Mesh mesh, bool shadeFlat)
+    public void DrawMesh(Mesh mesh, ShadingMode shadingMode)
     {
         for (int i = 0; i < mesh.Indices.Count; i += 3)
         {
@@ -46,44 +54,44 @@ internal class Rasterizer
             VertexData v2 = mesh.Vertices[index2];
             VertexData v3 = mesh.Vertices[index3];
 
-            DrawTriangle(v1, v2, v3, shadeFlat);
+            DrawTriangle(v1, v2, v3, shadingMode);
         }
     }
 
-    public void DrawCone(int verticalSegments, float height, bool shadeFlat, RawColor color)
+    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color, color, color);
-        DrawMesh(coneMesh, shadeFlat);
+        DrawMesh(coneMesh, shadingMode);
     }
 
-    public void DrawCone(int verticalSegments, float height, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCone(int verticalSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh coneMesh = Mesh.Cone(verticalSegments, height, color1, color2, color3);
-        DrawMesh(coneMesh, shadeFlat);
+        DrawMesh(coneMesh, shadingMode);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, bool shadeFlat, RawColor color)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color, color, color);
-        DrawMesh(cylinderMesh, shadeFlat);
+        DrawMesh(cylinderMesh, shadingMode);
     }
 
-    public void DrawCylinder(int verticalSegments, int heightSegments, float height, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawCylinder(int verticalSegments, int heightSegments, float height, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh cylinderMesh = Mesh.Cylinder(verticalSegments, heightSegments, height, color1, color2, color3);
-        DrawMesh(cylinderMesh, shadeFlat);
+        DrawMesh(cylinderMesh, shadingMode);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, bool shadeFlat, RawColor color)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color, color, color);
-        DrawMesh(torusMesh, shadeFlat);
+        DrawMesh(torusMesh, shadingMode);
     }
 
-    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, bool shadeFlat, RawColor color1, RawColor color2, RawColor color3)
+    public void DrawTorus(float R, float r, int outerSegments, int innerSegments, ShadingMode shadingMode, RawColor color1, RawColor color2, RawColor color3)
     {
         Mesh torusMesh = Mesh.Torus(R, r, outerSegments, innerSegments, color1, color2, color3);
-        DrawMesh(torusMesh, shadeFlat);
+        DrawMesh(torusMesh, shadingMode);
     }
 
     private static RawColor AddColors(RawColor c1, RawColor c2)
@@ -105,7 +113,7 @@ internal class Rasterizer
         return finalColor;
     }
 
-    public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3, bool shadeFlat)
+    public void DrawTriangle(VertexData v1, VertexData v2, VertexData v3, ShadingMode shadingMode)
     {
         Matrix4 objectToWorld = _vertexProcessor.ObjectToWorld;
         Matrix4 worldToView = _vertexProcessor.WorldToView;
@@ -124,30 +132,30 @@ internal class Rasterizer
         // Przetwarzanie wierzchołka 1
         Vector4 worldPos4_1 = objectToWorld * new Vector4(v1.Position, 1.0f);
         Vector3 worldPos1 = worldPos4_1.Xyz;
-        RawColor litColor1 = v1.Color;
+        RawColor colorForPv1 = v1.Color;
 
         Vector4 worldPos4_2 = objectToWorld * new Vector4(v2.Position, 1.0f);
         Vector3 worldPos2 = worldPos4_2.Xyz;
-        RawColor litColor2 = v1.Color;
+        RawColor colorForPv2 = v1.Color;
 
         Vector4 worldPos4_3 = objectToWorld * new Vector4(v3.Position, 1.0f);
         Vector3 worldPos3 = worldPos4_3.Xyz;
-        RawColor litColor3 = v1.Color;
+        RawColor colorForPv3 = v1.Color;
 
+        Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
+        Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
+        Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
 
-        if (!shadeFlat) // Oblicz osobne kolory dla wierzchołków przy cieniowaniu per Vertex:
+        if (shadingMode == ShadingMode.Gouraud) // Oblicz osobne kolory dla wierzchołków przy cieniowaniu per Vertex:
         {
-            Vector3 worldNormal1 = (objectToWorld * new Vector4(v1.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir1 = (cameraWorldPosition - worldPos1).Normalized();
-            litColor1 = CalculateLight(worldPos1, worldNormal1, viewDir1, v1.Color);
+            colorForPv1 = CalculateLight(worldPos1, worldNormal1, viewDir1, v1.Color);
 
-            Vector3 worldNormal2 = (objectToWorld * new Vector4(v2.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir2 = (cameraWorldPosition - worldPos2).Normalized();
-            litColor2 = CalculateLight(worldPos2, worldNormal2, viewDir2, v2.Color);
+            colorForPv2 = CalculateLight(worldPos2, worldNormal2, viewDir2, v2.Color);
 
-            Vector3 worldNormal3 = (objectToWorld * new Vector4(v3.Normal, 0.0f)).Xyz.Normalized();
             Vector3 viewDir3 = (cameraWorldPosition - worldPos3).Normalized();
-            litColor3 = CalculateLight(worldPos3, worldNormal3, viewDir3, v3.Color);
+            colorForPv3 = CalculateLight(worldPos3, worldNormal3, viewDir3, v3.Color);
         }
 
         Vector4 clip1 = _vertexProcessor.TransformPositionToClipSpace(v1.Position);
@@ -171,9 +179,9 @@ internal class Rasterizer
         Vector3 ndc3 = new Vector3(clip3.X * invW3, clip3.Y * invW3, clip3.Z * invW3);
 
         // Normalzie Coordinates -> Screen Position
-        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, litColor1);
-        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, litColor2);
-        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, litColor3);
+        ProjectedVertex pv1 = MapNdcToScreen(ndc1, invW1, colorForPv1, worldNormal1);
+        ProjectedVertex pv2 = MapNdcToScreen(ndc2, invW2, colorForPv2, worldNormal2);
+        ProjectedVertex pv3 = MapNdcToScreen(ndc3, invW3, colorForPv3, worldNormal3);
 
         pv1.WorldPos = worldPos1;
         pv2.WorldPos = worldPos2;
@@ -188,10 +196,10 @@ internal class Rasterizer
             return;
         }
 
-        RasterizeScreenTriangle(pv1, pv2, pv3, screenArea, shadeFlat);
+        RasterizeScreenTriangle(pv1, pv2, pv3, screenArea, shadingMode);
     }
 
-    private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color)
+    private ProjectedVertex MapNdcToScreen(Vector3 ndc, float invW, RawColor color, Vector3 worldNormal)
     {
         int width = _buffer.Width;
         int height = _buffer.Height;
@@ -207,12 +215,13 @@ internal class Rasterizer
         {
             ScreenPos = new Vector3(screenX, screenY, depthZ),
             Color = color,
-            InvW = invW
+            InvW = invW,
+            WorldNormal = worldNormal
         };
     }
 
     private void RasterizeScreenTriangle(ProjectedVertex p1, ProjectedVertex p2, ProjectedVertex p3, float triangleArea,
-        bool shadeFlat)
+        ShadingMode shadingMode)
     {
         int width = _buffer.Width;
         int height = _buffer.Height;
@@ -246,7 +255,7 @@ internal class Rasterizer
 
         RawColor flatColor = RawColor.Gray(0);
 
-        if (shadeFlat)
+        if (shadingMode == ShadingMode.Flat)
         {
             Vector3 edge1 = p2.WorldPos - p1.WorldPos;
             Vector3 edge2 = p3.WorldPos - p1.WorldPos;
@@ -278,14 +287,32 @@ internal class Rasterizer
                 {
                     _buffer.DepthBuffer[pixelIndex] = depth;
 
-                    if (shadeFlat)
+                    if (shadingMode == ShadingMode.Flat)
                     {
                         Vector3 interpWorldPos = InterpolateVector3(p1.WorldPos, p2.WorldPos, p3.WorldPos, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
 
                         Vector3 viewDir = (_cameraPos - interpWorldPos).Normalized();
+                        // bazowy kolor brany jest z wierzchołka (możliwe że to sprawi problemy) -------------------------
                         RawColor baseColor = p1.Color;
 
                         _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, triangleWorldNormal, viewDir, baseColor);
+                    }
+                    else if (shadingMode == ShadingMode.Phong)
+                    {
+                        Vector3 interpWorldPos = InterpolateVector3(p1.WorldPos, p2.WorldPos, p3.WorldPos, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
+                        Vector3 viewDir = (_cameraPos - interpWorldPos).Normalized();
+
+                        // Normalna piksela interpolowana z normalnych wierzchołków.
+                        Vector3 pixelNormal = InterpolateNormal(p1.WorldNormal, p2.WorldNormal, p3.WorldNormal, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
+                        if (pixelNormal.LengthSquared() < Epsilon)
+                        {
+                            pixelNormal = triangleWorldNormal;
+                            if (pixelNormal.LengthSquared() < Epsilon) pixelNormal = Vector3.UnitY;
+                        }
+
+                        // tutaj bazowy kolor jest interpolowany (sprawdzić czy działa dla tekstur) ----------------------------------
+                        RawColor baseMaterialColor = InterpolateColor(p1.Color, p2.Color, p3.Color, lambda1, lambda2, lambda3, p1.InvW, p2.InvW, p3.InvW, w);
+                        _buffer.ColorBuffer[pixelIndex] = CalculateLight(interpWorldPos, pixelNormal, viewDir, baseMaterialColor);
                     }
                     else
                     {
@@ -306,6 +333,23 @@ internal class Rasterizer
         float y = (l1 * v1.Y * invW1 + l2 * v2.Y * invW2 + l3 * v3.Y * invW3) * w;
         float z = (l1 * v1.Z * invW1 + l2 * v2.Z * invW2 + l3 * v3.Z * invW3) * w;
         return new Vector3(x, y, z);
+    }
+
+    private Vector3 InterpolateNormal(Vector3 n1, Vector3 n2, Vector3 n3,
+                                   float l1, float l2, float l3,
+                                   float invW1, float invW2, float invW3, float w)
+    {
+        // Interpolacja komponentów normalnej podzielonych przez w perspektywiczne
+        float nx_w = l1 * n1.X * invW1 + l2 * n2.X * invW2 + l3 * n3.X * invW3;
+        float ny_w = l1 * n1.Y * invW1 + l2 * n2.Y * invW2 + l3 * n3.Y * invW3;
+        float nz_w = l1 * n1.Z * invW1 + l2 * n2.Z * invW2 + l3 * n3.Z * invW3;
+
+        // Mnożenie przez w perspektywiczne
+        Vector3 interpolatedNormal = new Vector3(nx_w * w, ny_w * w, nz_w * w);
+
+        // Normalizuj zinterpolowaną normalną
+        // (NormalizedSafe to metoda, która sprawdza długość przed normalizacją, aby uniknąć NaN)
+        return interpolatedNormal.Normalized(); // Jeśli nie masz NormalizedSafe(), użyj standardowej Normalizuj i obsłuż przypadek zerowej długości
     }
 
     private RawColor InterpolateColor(RawColor c1, RawColor c2, RawColor c3, float l1, float l2, float l3, float invW1, float invW2, float invW3, float w)
